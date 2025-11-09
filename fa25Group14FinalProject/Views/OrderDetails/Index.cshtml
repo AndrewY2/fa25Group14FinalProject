@@ -1,0 +1,72 @@
+@model IEnumerable<Yun_Andrew_HW5.Models.OrderDetail>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Manage Items for Order #@ViewBag.OrderNumber</h1>
+
+@* NOTE: The "Create New" link here should typically redirect to the OrderDetails/Create
+    action, passing the parent OrderID. We will remove this link as the button
+    in Orders/Edit is the primary way to add items. *@
+
+@* <p>
+        <a asp-action="Create">Create New</a>
+    </p> *@
+
+<table class="table">
+    <thead>
+        <tr>
+            @* Part Five, Step 13a: Add column for Product Name *@
+            <th>
+                Product Name
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Quantity)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ProductPrice)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.ExtendedPrice)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>
+                    @* Part Five, Step 13a: Display the product name *@
+                    @Html.DisplayFor(modelItem => item.Product.Name)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Quantity)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.ProductPrice)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.ExtendedPrice)
+                </td>
+                <td>
+                    @* Part Five, Step 13b & 13c: Action links to Edit and Delete only, using OrderDetailID *@
+                    <a asp-action="Edit" asp-route-id="@item.OrderDetailID">Edit</a> |
+                    <a asp-action="Delete" asp-route-id="@item.OrderDetailID">Delete</a>
+                    @* Removed the Details link (Part Five, Step 13c) *@
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@* Add a link to go back to the parent order's Edit view *@
+@if (Model.Any())
+{
+    <div>
+        <a asp-controller="Orders" asp-action="Edit" asp-route-id="@Model.First().Order.OrderID" class="btn btn-secondary mt-3">
+            Back to Order Edit
+        </a>
+    </div>
+}

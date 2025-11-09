@@ -1,0 +1,87 @@
+@model Yun_Andrew_HW5.Models.Order
+
+@{
+    ViewData["Title"] = "Edit";
+}
+
+<h1>Edit Order</h1>
+<hr />
+
+<div class="row">
+    <div class="col-md-5">
+
+        @* MATCHING SCREENSHOT LAYOUT: Display order and user info as read-only text *@
+        <p><strong>Order Number:</strong> @Html.DisplayFor(model => model.OrderNumber)</p>
+        <p><strong>Full Name:</strong> @Model.User.FirstName @Model.User.LastName</p>
+        <p><strong>Email:</strong> @Model.User.Email</p>
+        <p><strong>Order Date:</strong> @Html.DisplayFor(model => model.OrderDate)</p>
+
+        <form asp-action="Edit">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            @* Part Five, Step 9b: Add a hidden element for OrderID *@
+            <input type="hidden" asp-for="OrderID" />
+
+            <div class="form-group">
+                <label asp-for="OrderNotes" class="control-label"></label>
+                <input asp-for="OrderNotes" class="form-control" />
+                <span asp-validation-for="OrderNotes" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                @* Changed value to "Save" to match screenshot *@
+                <input type="submit" value="Save" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+
+    <div class="col-md-7">
+
+        <h4>Products on this Order</h4> @* Changed title to match screenshot *@
+
+        @* Part Five, Step 9c: Add a table that shows the existing OrderDetails *@
+        @if (Model.OrderDetails == null || Model.OrderDetails.Count == 0)
+        {
+            <p>This order contains no items yet.</p>
+        }
+        else
+        {
+            <table class="table table-striped table-sm">
+                <thead>
+                    <tr>
+                        <th>Title</th> @* Changed Product Title to Title to match screenshot *@
+                        <th>Price</th>
+                        <th>Quantity</th>
+                        <th>Extended Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var od in Model.OrderDetails)
+                    {
+                        <tr>
+                            <td>@Html.DisplayFor(item => od.Product.Name)</td>
+                            <td>@Html.DisplayFor(item => od.ProductPrice)</td>
+                            <td>@Html.DisplayFor(item => od.Quantity)</td>
+                            <td>@Html.DisplayFor(item => od.ExtendedPrice)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+<hr />
+
+@* MATCHING SCREENSHOT LAYOUT: Consolidating action buttons at the bottom *@
+
+<a asp-action="Index" class="btn btn-info">Back to List</a>
+
+<a asp-controller="OrderDetails" asp-action="Create" asp-route-orderID="@Model.OrderID" class="btn btn-success">
+    Add Another Item
+</a>
+
+@* Renamed link text to match screenshot, kept existing action/controller *@
+<a asp-controller="OrderDetails" asp-action="Index" asp-route-orderID="@Model.OrderID" class="btn btn-danger">
+    Edit Existing Items
+</a>

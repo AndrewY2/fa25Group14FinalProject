@@ -1,0 +1,60 @@
+@model IEnumerable<Yun_Andrew_HW5.Models.Order>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Index</h1>
+
+@* 1. CONDITIONAL LOGIC: Only show "Create New" if the user is in the "Customer" role *@
+@if (User.IsInRole("Customer"))
+{
+    <p>
+        <a asp-action="Create">Create New</a>
+    </p>
+}
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.OrderNumber)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.OrderDate)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.OrderNotes)
+            </th>
+            @* Part Five, Step 7a: Add column for Order Total *@
+            <th>
+                @Html.DisplayNameFor(model => model.OrderTotal)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.OrderNumber)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.OrderDate)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.OrderNotes)
+                </td>
+                @* Part Five, Step 7a: Display Order Total with currency formatting *@
+                <td>
+                    @Html.DisplayFor(modelItem => item.OrderTotal)
+                </td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@item.OrderID">Edit</a> |
+                    <a asp-action="Details" asp-route-id="@item.OrderID">Details</a>
+                    @* Part Five, Step 7b: DELETE LINK IS REMOVED *@
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

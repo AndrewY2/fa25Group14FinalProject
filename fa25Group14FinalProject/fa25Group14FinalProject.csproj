@@ -7,4 +7,61 @@
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(RunConfiguration)' == 'http' " />
+  <ItemGroup>
+    <None Remove="Models\" />
+    <None Remove="Views\" />
+    <None Remove="Views\Shared\" />
+    <None Remove="Controllers\" />
+    <None Remove="DAL\" />
+    <None Remove="Models\ViewModels\" />
+    <None Remove="Views\Account\" />
+    <None Remove="Views\Home\" />
+    <None Remove="Views\OrderDetails\" />
+    <None Remove="Views\Orders\" />
+    <None Remove="Views\Products\" />
+    <None Remove="Views\RoleAdmin\" />
+    <None Remove="Views\Seed\" />
+    <None Remove="Views\Suppliers\" />
+    <None Remove="Seeding\" />
+    <None Remove="Utilities\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Models\" />
+    <Folder Include="Views\" />
+    <Folder Include="Views\Shared\" />
+    <Folder Include="Controllers\" />
+    <Folder Include="DAL\" />
+    <Folder Include="Models\ViewModels\" />
+    <Folder Include="Views\Account\" />
+    <Folder Include="Views\Home\" />
+    <Folder Include="Views\OrderDetails\" />
+    <Folder Include="Views\Orders\" />
+    <Folder Include="Views\Products\" />
+    <Folder Include="Views\RoleAdmin\" />
+    <Folder Include="Views\Seed\" />
+    <Folder Include="Views\Suppliers\" />
+    <Folder Include="Seeding\" />
+    <Folder Include="Utilities\" />
+    <Folder Include="wwwroot\" />
+    <Folder Include="wwwroot\lib\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Remove="wwwroot\" />
+    <Content Remove="wwwroot\lib\" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.21" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="8.0.21" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.21" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.21">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.21" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.21">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.7" />
+  </ItemGroup>
 </Project>
