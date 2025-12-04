@@ -9,8 +9,8 @@ namespace fa25Group14FinalProject.Utilities
         // TODO: change these three values for YOUR team Gmail
         // Example: bevo.books.team14@gmail.com and its app password
         private const string SenderEmail = "bevo.books.team14@gmail.com";
-        private const string SenderDisplayName = "Bevo's Books";
-        private const string SenderPassword = "JawadRules14";
+        private const string SenderDisplayName = "Team 14";
+        private const string SenderPassword = "etkf tiud qorl kalz";
 
         /// <summary>
         /// Sends a simple text email using the team Gmail account.
