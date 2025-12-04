@@ -9,6 +9,8 @@ using fa25Group14FinalProject.DAL;
 using fa25Group14FinalProject.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using fa25Group14FinalProject.Utilities;
+
 
 namespace fa25Group14FinalProject.Controllers
 {
@@ -105,6 +107,34 @@ namespace fa25Group14FinalProject.Controllers
             {
                 TempData[removeMessageKey] = removalMessages; // Preserve messages for the view
                 _context.SaveChanges();
+                try
+                {
+                    var user = _userManager.GetUserAsync(User).Result;
+                    if (user != null && removalMessages.Any())
+                    {
+                        var bodyBuilder = new System.Text.StringBuilder();
+                        bodyBuilder.AppendLine($"Hi {user.FirstName},");
+                        bodyBuilder.AppendLine();
+                        bodyBuilder.AppendLine("One or more items in your Bevo's Books cart were removed because they are no longer available:");
+                        bodyBuilder.AppendLine();
+
+                        foreach (var msg in removalMessages)
+                        {
+                            bodyBuilder.AppendLine(" - " + msg);
+                        }
+
+                        bodyBuilder.AppendLine();
+                        bodyBuilder.AppendLine("You can return to your cart at any time to continue shopping.");
+                        bodyBuilder.AppendLine("Team 14 – Bevo's Books");
+
+                        string subject = "Team 14: Cart Update – Items Removed";
+                        EmailUtils.SendEmailAsync(user.Email, subject, bodyBuilder.ToString()).Wait();
+                    }
+                }
+                catch
+                {
+                    // Fail silently for email errors so cart still works
+                }
             }
 
             return cart;

@@ -42,6 +42,7 @@ namespace fa25Group14FinalProject.Controllers
             return View();
         }
 
+
         // POST: /Account/Register
         [HttpPost]
         [AllowAnonymous]
@@ -80,8 +81,16 @@ namespace fa25Group14FinalProject.Controllers
 
             if (result.Succeeded)
             {
-                // Send confirmation email (Required) [cite: 131]
-                // await EmailUtils.SendEmailAsync(newUser.Email, "Team XX: Account Confirmation", "Welcome to Bevo's Books!");
+                // Send confirmation email (Required: account created) – include Team 14 in subject
+                string subject = "Bevo's Books: Account Confirmation";
+                string body =
+                    $"Hi {newUser.FirstName},\n\n" +
+                    "Welcome to Bevo's Books! Your customer account has been created successfully.\n\n" +
+                    "You can now log in, browse books, and start building your library.\n\n" +
+                    "Thanks for choosing us!\n" +
+                    "Team 14 – Bevo's Books";
+
+                await EmailUtils.SendEmailAsync(newUser.Email, subject, body);
 
                 await _signInManager.PasswordSignInAsync(rvm.Email, rvm.Password, false, lockoutOnFailure: false);
 
@@ -96,6 +105,7 @@ namespace fa25Group14FinalProject.Controllers
                 return View(rvm);
             }
         }
+
 
         // --- LOGIN/LOGOUT ---
 
@@ -265,8 +275,15 @@ namespace fa25Group14FinalProject.Controllers
 
             if (result.Succeeded)
             {
-                // Send email notification for password change (Required) [cite: 133]
-                // await EmailUtils.SendEmailAsync(userLoggedIn.Email, "Team XX: Password Changed", "Your password has been successfully updated.");
+                // Send email notification for password change (Required)
+                string subject = "Bevo's Books: Password Changed";
+                string body =
+                    $"Hi {userLoggedIn.FirstName},\n\n" +
+                    "This is a confirmation that your password for Bevo's Books has just been changed.\n\n" +
+                    "If you did not make this change, please contact support immediately.\n\n" +
+                    "Team 14 – Bevo's Books";
+
+                await EmailUtils.SendEmailAsync(userLoggedIn.Email, subject, body);
 
                 await _signInManager.SignInAsync(userLoggedIn, isPersistent: false);
 
@@ -282,6 +299,7 @@ namespace fa25Group14FinalProject.Controllers
                 return View(cpvm);
             }
         }
+
 
         // --- CREDIT CARD MANAGEMENT ---
 

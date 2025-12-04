@@ -39,7 +39,6 @@
     <Folder Include="Views\Orders\" />
     <Folder Include="Views\RoleAdmin\" />
     <Folder Include="Views\Seed\" />
-    <Folder Include="Utilities\" />
     <Folder Include="wwwroot\" />
     <Folder Include="wwwroot\lib\" />
     <Folder Include="Views\Promotions\" />

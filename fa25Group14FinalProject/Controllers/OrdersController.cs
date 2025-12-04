@@ -1,15 +1,16 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using fa25Group14FinalProject.DAL;
+using fa25Group14FinalProject.Models;
+using fa25Group14FinalProject.Utilities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using fa25Group14FinalProject.DAL;
-using fa25Group14FinalProject.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace fa25Group14FinalProject.Controllers
 {
@@ -214,9 +215,7 @@ namespace fa25Group14FinalProject.Controllers
             }
             else
             {
-                // FIX: If the CouponCode is blank, ensure no ModelState error is associated with it.
-                // This allows the form to submit successfully without a coupon, or fail
-                // only on other errors (like no card selected).
+                // If the CouponCode is blank, ensure no ModelState error is associated with it.
                 if (ModelState.ContainsKey("CouponCode"))
                 {
                     ModelState.Remove("CouponCode");
@@ -285,11 +284,69 @@ namespace fa25Group14FinalProject.Controllers
             _context.Update(cart);
             await _context.SaveChangesAsync();
 
-            // --- 4. CONFIRMATION & REDIRECTION ---
+            // --- 4. EMAIL CONFIRMATION (with recommendations) ---
+
+            // Load customer and a representative book for recommendations
+            var customer = await _context.Users.FirstOrDefaultAsync(u => u.Id == cart.CustomerID);
+            var purchasedBook = cart.OrderDetails.FirstOrDefault()?.Book;
+
+
+            // Build email body
+            if (customer != null)
+            {
+                var bodyBuilder = new System.Text.StringBuilder();
+
+                bodyBuilder.AppendLine($"Hi {customer.FirstName},");
+                bodyBuilder.AppendLine();
+                bodyBuilder.AppendLine("Thank you for your order from Bevo's Books!");
+                bodyBuilder.AppendLine($"Your order number is #{cart.OrderID}.");
+                bodyBuilder.AppendLine();
+                bodyBuilder.AppendLine("Order Details:");
+                bodyBuilder.AppendLine("------------------------------");
+
+                foreach (var od in cart.OrderDetails)
+                {
+                    // Make sure we include title and author in the email
+                    bodyBuilder.AppendLine(
+                        $"{od.ProductName} by {od.Book?.Authors} — Qty: {od.Quantity}, Price: {od.Price:C}");
+                }
+
+                bodyBuilder.AppendLine("------------------------------");
+                bodyBuilder.AppendLine($"Subtotal: {subtotal:C}");
+                bodyBuilder.AppendLine($"Shipping: {finalShipping:C}");
+                bodyBuilder.AppendLine($"Discount: {cart.DiscountAmount:C}");
+                bodyBuilder.AppendLine($"Total: {(subtotal + finalShipping):C}");
+                bodyBuilder.AppendLine();
+
+                // Recommendations (Required to appear in confirmation email)
+                if (purchasedBook != null)
+                {
+                    var recommendations = await GetRecommendationsForOrder(cart.CustomerID, purchasedBook);
+
+                    if (recommendations != null && recommendations.Any())
+                    {
+                        bodyBuilder.AppendLine("You might also enjoy:");
+                        foreach (var rec in recommendations)
+                        {
+                            bodyBuilder.AppendLine($" - {rec.Title} by {rec.Authors} (Genre: {rec.Genre?.GenreName})");
+                        }
+                        bodyBuilder.AppendLine();
+                    }
+                }
+
+                bodyBuilder.AppendLine("Thanks again for shopping with us!");
+                bodyBuilder.AppendLine("Team 14 – Bevo's Books");
+
+                string subject = "Team 14: Order Confirmation";
+                await EmailUtils.SendEmailAsync(customer.Email, subject, bodyBuilder.ToString());
+            }
+
+            // --- 5. CONFIRMATION & REDIRECTION ---
 
             TempData["SuccessMessage"] = $"Order #{cart.OrderID} successfully placed!";
             return RedirectToAction("Confirmed", new { id = cart.OrderID });
         }
+
 
         // GET: Orders/Confirmed/5 (Order Confirmation Page)
         public async Task<IActionResult> Confirmed(int? id)
