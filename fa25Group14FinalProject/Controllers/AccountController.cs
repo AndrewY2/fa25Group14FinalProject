@@ -82,7 +82,7 @@ namespace fa25Group14FinalProject.Controllers
             if (result.Succeeded)
             {
                 // Send confirmation email (Required: account created) – include Team 14 in subject
-                string subject = "Bevo's Books: Account Confirmation";
+                string subject = "Team 14: Account Confirmation";
                 string body =
                     $"Hi {newUser.FirstName},\n\n" +
                     "Welcome to Bevo's Books! Your customer account has been created successfully.\n\n" +
@@ -276,7 +276,7 @@ namespace fa25Group14FinalProject.Controllers
             if (result.Succeeded)
             {
                 // Send email notification for password change (Required)
-                string subject = "Bevo's Books: Password Changed";
+                string subject = "Team 14: Password Changed";
                 string body =
                     $"Hi {userLoggedIn.FirstName},\n\n" +
                     "This is a confirmation that your password for Bevo's Books has just been changed.\n\n" +

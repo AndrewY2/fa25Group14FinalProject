@@ -50,6 +50,11 @@ else
                         <option value="">-- Select a card --</option>
                     </select>
                     @Html.ValidationMessage("SelectedCardID", "", new { @class = "text-danger" })
+                    <small class="form-text text-muted">
+                        Need a different card?
+                        <a asp-controller="Account" asp-action="AddCard">Add a new card</a> or
+                        <a asp-controller="Account" asp-action="Index">manage saved cards</a>.
+                    </small>
                 </div>
 
                 <div class="form-group mt-3">
@@ -62,6 +67,37 @@ else
                     @Html.ValidationMessage("CouponCode", "", new { @class = "text-danger" })
                 </div>
 
+                <div class="form-group mb-3">
+                    <h5>Shipping To</h5>
+                    @if (Model.Customer != null)
+                    {
+                        <p>
+                            @Model.Customer.FirstName @Model.Customer.LastName<br />
+                            @Model.Customer.Address<br />
+                            @Model.Customer.City, @Model.Customer.State @Model.Customer.ZipCode
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="text-warning">
+                            We could not load your profile information. Please verify your account details.
+                        </p>
+                    }
+                    <small class="form-text text-muted">
+                        Orders are shipped to the address in your profile.
+                        To change it, go to
+                        <a asp-controller="Account" asp-action="Modify">Manage Account</a>
+                        before placing your order.
+                    </small>
+                </div>
+
+                <button type="submit"
+                        name="submitAction"
+                        value="apply"
+                        class="btn btn-outline-primary me-2">
+                    Apply Coupon
+                </button>
+
                 <button type="submit" class="btn btn-success mt-3">
                     Place Order
                 </button>
@@ -72,55 +108,83 @@ else
                 </a>
             }
         </div>
+        
+       <!-- RIGHT: Order Summary -->
+    <div class="col-md-7">
+        <h3>Order Summary</h3>
+        <hr />
 
-        <!-- RIGHT SIDE: Order Summary -->
-        <div class="col-md-7">
-            <h4>Order Summary</h4>
-            <hr />
-
-            <table class="table table-sm">
+        @if (Model.OrderDetails == null || !Model.OrderDetails.Any())
+        {
+            <p>Your cart is currently empty.</p>
+        }
+        else
+        {
+            <table class="table table-striped">
                 <thead>
                     <tr>
                         <th>Book</th>
                         <th class="text-center">Qty</th>
-                        <th class="text-right">Price</th>
-                        <th class="text-right">Extended</th>
+                        <th class="text-end">Price</th>
+                        <th class="text-end">Extended</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var od in Model.OrderDetails)
-                    {
-                        <tr>
-                            <td>@od.Book.Title</td>
-                            <td class="text-center">@od.Quantity</td>
-                            <td class="text-right">@od.Price.ToString("C")</td>
-                            <td class="text-right">@od.ExtendedPrice.ToString("C")</td>
-                        </tr>
-                    }
+                @foreach (var item in Model.OrderDetails)
+                {
+                    <tr>
+                        <td>@item.Book.Title</td>
+                        <td class="text-center">@item.Quantity</td>
+                        <td class="text-end">@item.Price.ToString("C")</td>
+                        <td class="text-end">@((item.Price * item.Quantity).ToString("C"))</td>
+                    </tr>
+                }
                 </tbody>
             </table>
 
-            <dl class="row">
-                <dt class="col-sm-6 text-right">Subtotal:</dt>
-                <dd class="col-sm-6 text-right">@Model.Subtotal.ToString("C")</dd>
 
-                @* DiscountAmount will usually be 0 at this stage; it will show after PlaceOrder *@
-                @if (Model.DiscountAmount.HasValue && Model.DiscountAmount.Value > 0)
+                <div class="row">
+                    <div class="col-6 text-end">
+                        <p>Subtotal:</p>
+                        <p>Shipping Fee:</p>
+                        @if (Model.DiscountAmount > 0)
+                        {
+                            <p>Discount:</p>
+                        }
+                        <p><strong>Estimated Total:</strong></p>
+                    </div>
+                    <div class="col-6 text-end">
+                        <p>@String.Format("{0:C}", Model.Subtotal)</p>
+                        <p>@String.Format("{0:C}", Model.ShippingFee)</p>
+                        @if (Model.DiscountAmount > 0)
+                        {
+                            <p class="text-success">
+                                -@String.Format("{0:C}", Model.DiscountAmount)
+                            </p>
+                        }
+                        <p>
+                            <strong>
+                                @String.Format("{0:C}", Model.OrderTotal)
+                    </strong>
+                </p>
+            </div>
+        </div>
+
+
+        @if (Model.DiscountAmount > 0)
                 {
-                    <dt class="col-sm-6 text-right text-success">Discount:</dt>
-                    <dd class="col-sm-6 text-right text-success">
-                        -@Model.DiscountAmount.Value.ToString("C")
-                    </dd>
+                    <p class="text-success mt-2">
+                        Coupon applied – you saved
+                        @String.Format("{0:C}", Model.DiscountAmount)
+                        on this order.
+                    </p>
                 }
 
-                <dt class="col-sm-6 text-right">Shipping Fee:</dt>
-                <dd class="col-sm-6 text-right">@Model.ShippingFee.ToString("C")</dd>
+                <small class="text-muted">
+                    Shipping is $3.50 for the first book and $1.50 for each additional book.
+                </small>
 
-                <dt class="col-sm-6 text-right font-weight-bold">Estimated Total:</dt>
-                <dd class="col-sm-6 text-right font-weight-bold">
-                    @Model.OrderTotal.ToString("C")
-                </dd>
-            </dl>
+            }
         </div>
     </div>
 }

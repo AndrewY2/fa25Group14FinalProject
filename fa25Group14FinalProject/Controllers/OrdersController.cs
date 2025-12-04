@@ -160,10 +160,11 @@ namespace fa25Group14FinalProject.Controllers
 
             return View(cart);
         }
+        //perri added last string
         [HttpPost]
         [Authorize(Roles = "Customer")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> PlaceOrder(int SelectedCardID, string CouponCode)
+        public async Task<IActionResult> PlaceOrder(int SelectedCardID, string CouponCode, string submitAction)
         {
             // Helpers required in this scope
             string currentUserID = GetUserID();
@@ -258,6 +259,22 @@ namespace fa25Group14FinalProject.Controllers
                     cart.DiscountAmount = discount;
                     subtotal = originalSubtotal - discount;
                 }
+            }
+            // perri added
+            // --- 2b. If user clicked "Apply Coupon", just refresh Checkout with updated totals ---
+            if (submitAction == "apply")
+            {
+                // Update the shipping fee on the cart for display
+                cart.ShippingFee = finalShipping;
+
+                // At this point cart.DiscountAmount has already been set (if a percent-off coupon was applied)
+                // and OrderTotal is computed from Subtotal, DiscountAmount, and ShippingFee.
+
+                // Rebuild dropdown with the previously selected card
+                ViewBag.AllCards = GetCustomerCards(SelectedCardID);
+
+                // Redisplay the Checkout page instead of placing the order
+                return View("Checkout", cart);
             }
 
             // --- 3. ORDER FINALIZATION & TRANSACTION ---
