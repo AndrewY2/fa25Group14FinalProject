@@ -1,72 +1,197 @@
-@model IEnumerable<Yun_Andrew_HW5.Models.OrderDetail>
+@model fa25Group14FinalProject.Models.Order
+@* Assumes ViewBag.PotentialSavings, ViewBag.CurrentShippingFee, and ViewBag.CurrentOrderTotal are set by OrderDetailsController.Index *@
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Shopping Cart";
+
+    var potentialSavingsList = ViewBag.PotentialSavings as List<dynamic> ?? new List<dynamic>();
+
+    var highestPercentOffCoupon = potentialSavingsList
+                                    .Where(p => p.Type == "PercentOff")
+                                    .OrderByDescending(p => p.PercentOff)
+                                    .FirstOrDefault();
+
+    decimal highestPercentOff = highestPercentOffCoupon?.PercentOff ?? 0m;
+    string highestPercentOffCode = highestPercentOffCoupon?.Code;
+
+    var freeShippingCoupon = potentialSavingsList
+                                    .FirstOrDefault(p => p.Type == "FreeShipping" && p.Savings > 0);
+
+    string freeShipCode = freeShippingCoupon?.Code;
+
+    List<string> percentOffCoupons = potentialSavingsList
+        .Where(p => p.Type == "PercentOff" && p.PercentOff > 0)
+        .Select(p => (string)p.Code)
+        .Distinct()
+        .ToList();
 }
 
-<h1>Manage Items for Order #@ViewBag.OrderNumber</h1>
+<h1>🛍️ Your Shopping Cart</h1>
+<hr />
 
-@* NOTE: The "Create New" link here should typically redirect to the OrderDetails/Create
-    action, passing the parent OrderID. We will remove this link as the button
-    in Orders/Edit is the primary way to add items. *@
-
-@* <p>
-        <a asp-action="Create">Create New</a>
-    </p> *@
-
-<table class="table">
-    <thead>
-        <tr>
-            @* Part Five, Step 13a: Add column for Product Name *@
-            <th>
-                Product Name
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Quantity)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ProductPrice)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ExtendedPrice)
-            </th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var item in Model)
-        {
-            <tr>
-                <td>
-                    @* Part Five, Step 13a: Display the product name *@
-                    @Html.DisplayFor(modelItem => item.Product.Name)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Quantity)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.ProductPrice)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.ExtendedPrice)
-                </td>
-                <td>
-                    @* Part Five, Step 13b & 13c: Action links to Edit and Delete only, using OrderDetailID *@
-                    <a asp-action="Edit" asp-route-id="@item.OrderDetailID">Edit</a> |
-                    <a asp-action="Delete" asp-route-id="@item.OrderDetailID">Delete</a>
-                    @* Removed the Details link (Part Five, Step 13c) *@
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
-
-@* Add a link to go back to the parent order's Edit view *@
-@if (Model.Any())
+@* 1. Display Maintenance and Error Messages *@
+@if (TempData["CartRemovalMessages"] is List<string> removalMessages && removalMessages.Any())
 {
-    <div>
-        <a asp-controller="Orders" asp-action="Edit" asp-route-id="@Model.First().Order.OrderID" class="btn btn-secondary mt-3">
-            Back to Order Edit
-        </a>
+    <div class="alert alert-warning">
+        <p><strong>Heads Up! The following items were updated/removed:</strong></p>
+        <ul>
+            @foreach (var message in removalMessages)
+            {
+                <li>@message</li>
+            }
+        </ul>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+}
+
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+@if (!Model.OrderDetails.Any())
+{
+    <p class="lead">Your shopping cart is currently empty. Start browsing our books!</p>
+    <a asp-controller="Books" asp-action="Search" class="btn btn-primary">Go to Books</a>
+}
+else
+{
+    @* --- FORCED STACKING/FULL WIDTH --- *@
+    <div class="row">
+        <div class="col-12">
+            <h3>Cart Contents (@Model.OrderDetails.Sum(od => od.Quantity) Books)</h3>
+
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">Book</th>
+                        @* COMBINED PRICE COLUMN for better width *@
+                        <th style="width: 25%;">Price (Orig. / @(highestPercentOff > 0 ? highestPercentOffCode : "N/A"))</th>
+                        <th style="width: 25%;">Qty</th>
+                        <th style="width: 15%;">Extended Price</th>
+                        <th style="width: 5%;"></th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @foreach (var od in Model.OrderDetails)
+                    {
+                        <tr>
+                            <td>@od.Book.Title</td>
+
+                            @* COMBINED PRICE COLUMN (Original and Potential Discounted) *@
+                            <td>
+                                <div>@od.Price.ToString("C")</div>
+                                @if (highestPercentOff > 0)
+                                {
+                                    decimal discountedPrice = od.Price * (1.0m - (highestPercentOff / 100.0m));
+                                    <div class="text-danger small">@discountedPrice.ToString("C")</div>
+                                }
+                                else
+                                {
+                                    <div class="small text-muted">No Discount</div>
+                                }
+                            </td>
+
+                            @* QUANTITY FORM *@
+                            <td>
+                                <form asp-action="Edit" asp-controller="OrderDetails" method="post" class="form-inline">
+                                    <input type="hidden" name="id" value="@od.OrderDetailID" />
+                                    <input type="number" name="Quantity" value="@od.Quantity" min="0" max="@od.Book.InventoryQuantity" class="form-control form-control-sm w-50 mr-2" />
+                                    <input type="submit" value="Update" class="btn btn-sm btn-info" />
+                                </form>
+                            </td>
+
+                            <td>@od.ExtendedPrice.ToString("C")</td>
+
+                            @* DELETE FORM *@
+                            <td>
+                                <form asp-action="Delete" asp-controller="OrderDetails" method="post" class="d-inline">
+                                    <input type="hidden" name="id" value="@od.OrderDetailID" />
+                                    <input type="submit" value="X" class="btn btn-sm btn-danger" title="Remove Item" />
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            @* COUPON MESSAGE *@
+            @if (percentOffCoupons.Any())
+            {
+                <div class="alert alert-info">
+                    <p>
+                        Apply one of the following coupon codes at checkout:
+                        <br />
+                        <strong>@string.Join(", ", percentOffCoupons)</strong>
+                    </p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <hr class="mt-4 mb-4" />
+
+    <div class="row">
+        <div class="col-12 col-md-6 offset-md-6 col-lg-4 offset-lg-8">
+            <h3>Summary</h3>
+
+            <table class="table table-sm">
+                <tr>
+                    <th class="text-right">Subtotal:</th>
+                    <td>@Model.Subtotal.ToString("C")</td>
+                </tr>
+
+                <tr>
+                    <th class="text-right">Original Shipping Fee:</th>
+                    <td>@ViewBag.CurrentShippingFee.ToString("C")</td>
+                </tr>
+
+                @if (freeShippingCoupon != null)
+                {
+                    <tr>
+                        <th class="text-right text-danger">Discount Shipping Fee (Coupon @freeShipCode):</th>
+                        <td><strong class="text-danger">$0.00</strong></td>
+                    </tr>
+                }
+
+                <tr>
+                    <th class="text-right">Current Order Total:</th>
+                    <td class="font-weight-bold">@ViewBag.CurrentOrderTotal.ToString("C")</td>
+                </tr>
+
+                @if (potentialSavingsList.Any(p => p.PotentialTotal < ViewBag.CurrentOrderTotal))
+                {
+                    decimal lowestPotentialTotal = potentialSavingsList.Min(p => (decimal)p.PotentialTotal);
+                    var lowestCoupon = potentialSavingsList.First(p => p.PotentialTotal == lowestPotentialTotal);
+
+                    <tr>
+                        <th class="text-right text-success">Lowest Potential Total (Coupon @lowestCoupon.Code):</th>
+                        <td><strong class="text-success">@lowestPotentialTotal.ToString("C")</strong></td>
+                    </tr>
+                }
+            </table>
+
+            @if (potentialSavingsList.Count > 0)
+            {
+                <h4 class="mt-4">💰 All Potential Coupon Total Previews</h4>
+                <ul class="list-group">
+                    @foreach (var potential in potentialSavingsList)
+                    {
+                        <li class="list-group-item list-group-item-light d-flex justify-content-between align-items-center">
+                            <div>@potential.Code total:</div>
+                            <div><strong class="text-success">@potential.PotentialTotal.ToString("C")</strong></div>
+                        </li>
+                    }
+                </ul>
+            }
+
+            <br />
+
+            <a asp-controller="Orders" asp-action="Checkout" class="btn btn-warning btn-lg btn-block">
+                Proceed to Checkout
+            </a>
+        </div>
     </div>
 }

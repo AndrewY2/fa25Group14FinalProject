@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-
+using System.Threading.Tasks;
 
 // Update this using statement to include your project name
 using fa25Group14FinalProject.Models;
@@ -27,6 +27,7 @@ namespace fa25Group14FinalProject.Controllers
         {
             return View();
         }
+
         public async Task<IActionResult> SeedRoles()
         {
             try
@@ -43,12 +44,15 @@ namespace fa25Group14FinalProject.Controllers
                 errorList.Add(ex.Message);
 
                 //Add the message from the inner exception
-                errorList.Add(ex.InnerException.Message);
-
-                //Add additional inner exception messages, if there are any
-                if (ex.InnerException.InnerException != null)
+                if (ex.InnerException != null)
                 {
-                    errorList.Add(ex.InnerException.InnerException.Message);
+                    errorList.Add(ex.InnerException.Message);
+
+                    //Add additional inner exception messages, if there are any
+                    if (ex.InnerException.InnerException != null)
+                    {
+                        errorList.Add(ex.InnerException.InnerException.Message);
+                    }
                 }
 
                 return View("Error", errorList);
@@ -57,6 +61,141 @@ namespace fa25Group14FinalProject.Controllers
             //this is the happy path - seeding worked!
             return View("Confirm");
         }
+
+        // Seed genres (wrap synchronous seeder in Task.Run so it can be awaited)
+        public async Task<IActionResult> SeedGenres()
+        {
+            try
+            {
+                await Task.Run(() => Seeding.SeedGenres.SeedAllGenres(_context));
+            }
+            catch (Exception ex)
+            {
+                List<String> errorList = new List<String>();
+                errorList.Add(ex.Message);
+
+                if (ex.InnerException != null)
+                {
+                    errorList.Add(ex.InnerException.Message);
+                    if (ex.InnerException.InnerException != null)
+                    {
+                        errorList.Add(ex.InnerException.InnerException.Message);
+                    }
+                }
+
+                return View("Error", errorList);
+            }
+
+            return View("Confirm");
+        }
+
+        public async Task<IActionResult> SeedBooks()
+        {
+            try
+            {
+                await Task.Run(() => Seeding.SeedBooks.SeedAllBooks(_context));
+            }
+            catch (Exception ex)
+            {
+                List<String> errorList = new List<String>();
+                errorList.Add(ex.Message);
+
+                if (ex.InnerException != null)
+                {
+                    errorList.Add(ex.InnerException.Message);
+                    if (ex.InnerException.InnerException != null)
+                    {
+                        errorList.Add(ex.InnerException.InnerException.Message);
+                    }
+                }
+
+                return View("Error", errorList);
+            }
+
+            return View("Confirm");
+        }
+
+        // Seed cards
+        public async Task<IActionResult> SeedCards()
+        {
+            try
+            {
+                await Task.Run(() => Seeding.SeedCards.SeedAllCards(_context));
+            }
+            catch (Exception ex)
+            {
+                List<String> errorList = new List<String>();
+                errorList.Add(ex.Message);
+
+                if (ex.InnerException != null)
+                {
+                    errorList.Add(ex.InnerException.Message);
+                    if (ex.InnerException.InnerException != null)
+                    {
+                        errorList.Add(ex.InnerException.InnerException.Message);
+                    }
+                }
+
+                return View("Error", errorList);
+            }
+
+            return View("Confirm");
+        }
+
+        // Seed orders
+        public async Task<IActionResult> SeedOrders()
+        {
+            try
+            {
+                await Task.Run(() => Seeding.SeedOrders.SeedAllOrders(_context));
+            }
+            catch (Exception ex)
+            {
+                List<String> errorList = new List<String>();
+                errorList.Add(ex.Message);
+
+                if (ex.InnerException != null)
+                {
+                    errorList.Add(ex.InnerException.Message);
+                    if (ex.InnerException.InnerException != null)
+                    {
+                        errorList.Add(ex.InnerException.InnerException.Message);
+                    }
+                }
+
+                return View("Error", errorList);
+            }
+
+            return View("Confirm");
+        }
+
+        // Seed reviews
+        public async Task<IActionResult> SeedReviews()
+        {
+            try
+            {
+                await Task.Run(() => Seeding.SeedReviews.SeedAllReviews(_context));
+            }
+            catch (Exception ex)
+            {
+                List<String> errorList = new List<String>();
+                errorList.Add(ex.Message);
+
+                if (ex.InnerException != null)
+                {
+                    errorList.Add(ex.InnerException.Message);
+                    if (ex.InnerException.InnerException != null)
+                    {
+                        errorList.Add(ex.InnerException.InnerException.Message);
+                    }
+                }
+
+                return View("Error", errorList);
+            }
+
+            return View("Confirm");
+        }
+
         public async Task<IActionResult> SeedPeople()
         {
             try

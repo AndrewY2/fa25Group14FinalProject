@@ -3,73 +3,72 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
-using fa25Group14FinalProject.Models;
 
 namespace fa25Group14FinalProject.Models
 {
+    public enum OrderStatus
+    {
+        InCart,
+        Ordered
+    }
+
     public class Order
     {
-        // e. Named Constant for TAX_RATE
-        public const decimal TAX_RATE = 0.0825m;
+        // ---------- Scalar Properties ----------
 
-        // Scalar Properties
-
-        // a. OrderID (Primary key)
         public int OrderID { get; set; }
 
-        // b. OrderNumber (Starts at 70001) - Use Display for formatting
-        [Display(Name = "Order Number")]
-        public int OrderNumber { get; set; }
-
-        // c. OrderDate
         [Display(Name = "Order Date")]
         [DisplayFormat(DataFormatString = "{0:MM/dd/yyyy}", ApplyFormatInEditMode = true)]
         public DateTime OrderDate { get; set; }
 
-        // d. OrderNotes
-        [Display(Name = "Order Notes")]
-        public string OrderNotes { get; set; }
+        [Required]
+        [Display(Name = "Shipping Fee")]
+        [DataType(DataType.Currency)]
+        public decimal ShippingFee { get; set; }
 
-        // Navigational Properties
+        // ✅ MUST be settable so the controller can assign to it
+        [Display(Name = "Discount Amount")]
+        [DataType(DataType.Currency)]
+        public decimal? DiscountAmount { get; set; }
 
-        // Relationship 1: One-to-Many with AppUser (Customer)
-        // Each order belongs to a single customer (AppUser)
-        public AppUser User { get; set; }
+        [Display(Name = "Status")]
+        public OrderStatus OrderStatus { get; set; }
 
-        // Relationship 2: One-to-Many with OrderDetail
-        // An order consists of many order details (the many-to-many join)
+        // ---------- Navigation / FK Properties ----------
+
+        public string CustomerID { get; set; }
+        public virtual AppUser? Customer { get; set; }
+
+        public int? CardID { get; set; }
+        public virtual Card? Card { get; set; }
+
+        public int? CouponID { get; set; }
+        public virtual Coupon? Coupon { get; set; }
+
         public List<OrderDetail> OrderDetails { get; set; }
 
+        // ---------- Calculated (not mapped) ----------
 
-        // Read-Only Properties for Summary Calculations (as suggested in step 5e of Part Five)
-
-        // The sum of the extended prices of the order details
         [Display(Name = "Subtotal")]
         [DataType(DataType.Currency)]
-        [NotMapped] // Tell EF not to map this to a database column
+        [NotMapped]
         public decimal Subtotal
         {
-            get { return OrderDetails.Sum(od => od.ExtendedPrice); }
+            get { return OrderDetails.Sum(od => od.Price * od.Quantity); }
         }
 
-        // Sales tax (subtotal * TAX_RATE)
-        [Display(Name = "Sales Tax")]
-        [DataType(DataType.Currency)]
-        [NotMapped] // Tell EF not to map this to a database column
-        public decimal Tax
-        {
-            get { return Subtotal * TAX_RATE; }
-        }
-
-        // Order total (subtotal + sales tax)
         [Display(Name = "Order Total")]
         [DataType(DataType.Currency)]
-        [NotMapped] // Tell EF not to map this to a database column
+        [NotMapped]
         public decimal OrderTotal
         {
-            get { return Subtotal + Tax; }
+            get
+            {
+                decimal discount = DiscountAmount ?? 0m;
+                return Subtotal - discount + ShippingFee;
+            }
         }
-
 
         public Order()
         {

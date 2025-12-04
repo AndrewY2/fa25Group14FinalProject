@@ -15,19 +15,44 @@ namespace fa25Group14FinalProject.DAL
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options){ }
 
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
-            //this code makes sure the database is re-created on the $5/month Azure tier
             builder.HasPerformanceLevel("Basic");
             builder.HasServiceTier("Basic");
             base.OnModelCreating(builder);
+
+            // Orders -> Card (prevent cascade delete from Card -> Orders)
+            builder.Entity<Order>()
+                .HasOne(o => o.Card)
+                .WithMany(c => c.Orders)
+                .HasForeignKey(o => o.CardID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Orders -> Customer (prevent cascade delete from User -> Orders)
+            builder.Entity<Order>()
+                .HasOne(o => o.Customer)
+                .WithMany(u => u.Orders)
+                .HasForeignKey(o => o.CustomerID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Card -> Customer (prevent cascade delete from User -> Cards)
+            builder.Entity<Card>()
+                .HasOne(c => c.Customer)
+                .WithMany(u => u.Cards)
+                .HasForeignKey(c => c.CustomerID)
+                .OnDelete(DeleteBehavior.Restrict);
         }
 
         //TODO: Add Dbsets here.  Products is included as an example.  
-        public DbSet<Product> Products { get; set; }
+        public DbSet<Book> Books { get; set; }
+        public DbSet<Genre> Genres { get; set; }
+        public DbSet<Review> Reviews { get; set; }
+        public DbSet<Card> Cards { get; set; }
+        public DbSet<Coupon> Coupons { get; set; }
         public DbSet<Order> Orders { get; set; }
-        public DbSet<Supplier> Suppliers { get; set; }
         public DbSet<OrderDetail> OrderDetails { get; set; }
+        public DbSet<Reorder> Reorders { get; set; }
 
 
 

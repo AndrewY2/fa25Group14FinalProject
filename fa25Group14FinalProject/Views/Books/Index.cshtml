@@ -1,0 +1,88 @@
+@model IEnumerable<fa25Group14FinalProject.Models.Book>
+
+@{
+    ViewData["Title"] = "Book Search Results";
+}
+
+<h1>Bevo's Books Catalog</h1>
+
+@* 1. CONDITIONAL LOGIC: Only show "Create New" if the user is in the "Admin" role *@
+@if (User.IsInRole("Admin"))
+{
+    <p>
+        <a asp-action="Create" class="btn btn-primary btn-sm">Add New Book</a>
+    </p>
+}
+
+@* NOTE: You should add the search form and filtering options here *@
+<div class="alert alert-info">
+    Showing @ViewBag.SelectedBooks out of @ViewBag.AllBooks books
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                Title:
+            </th>
+            <th>
+                Author:
+            </th>
+            <th>
+                Unique Number:
+            </th>
+            <th>
+                In Stock:
+            </th>
+            <th>
+                Rating:
+            </th>
+
+            @* 2. CONDITIONAL LOGIC: Only show this empty header if the user is in the "Admin" role *@
+            @if (User.IsInRole("Admin"))
+            {
+                <th>Admin Actions</th>
+            }
+            else
+            {
+                <th></th>
+            }
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Title)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Authors)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.BookNumber)
+                </td>
+                <td>
+                    @(item.InventoryQuantity > 0 ? "Yes" : "No")
+                </td>
+                <td>
+                    @* This should be replaced with the actual average rating logic in the final view *@
+                    N/A
+                </td>
+
+                @* 3. CONDITIONAL LOGIC: Show Edit/Delete only if Admin, otherwise just show Details *@
+                <td>
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <a asp-action="Edit" asp-route-id="@item.BookID">Edit</a> <span>|</span>
+                        <a asp-action="Details" asp-route-id="@item.BookID">Details</a>
+                    }
+                    else
+                    {
+                        <a asp-action="Details" asp-route-id="@item.BookID">View Details</a>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

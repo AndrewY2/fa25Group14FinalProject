@@ -1,5 +1,15 @@
-﻿<h2>Press these buttons to seed your roles and users!</h2>
+﻿@{
+    ViewData["Title"] = "Seed Data";
+}
 
-<a asp-action="SeedRoles" asp-controller="Seed" class="btn btn-primary">Seed Roles</a>
+<h2>Press these buttons to seed data</h2>
 
-<a asp-action="SeedPeople" asp-controller="Seed" class="btn btn-info">Seed People</a>
+<div class="mb-3">
+    <a asp-controller="Seed" asp-action="SeedRoles" class="btn btn-primary m-1">Seed Roles</a>
+    <a asp-controller="Seed" asp-action="SeedPeople" class="btn btn-info m-1">Seed People</a>
+    <a asp-controller="Seed" asp-action="SeedGenres" class="btn btn-secondary m-1">Seed Genres</a>
+    <a asp-controller="Seed" asp-action="SeedBooks" class="btn btn-secondary m-1">Seed Books</a>
+    <a asp-controller="Seed" asp-action="SeedCards" class="btn btn-warning m-1">Seed Cards</a>
+    <a asp-controller="Seed" asp-action="SeedOrders" class="btn btn-success m-1">Seed Orders</a>
+    <a asp-controller="Seed" asp-action="SeedReviews" class="btn btn-dark m-1">Seed Reviews</a>
+</div>

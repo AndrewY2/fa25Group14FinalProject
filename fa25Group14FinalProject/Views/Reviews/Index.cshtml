@@ -1,0 +1,99 @@
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using fa25Group14FinalProject.Models
+@inject UserManager<AppUser> UserManager
+@inject fa25Group14FinalProject.DAL.AppDbContext db
+
+@{
+    ViewData["Title"] = "Reviews";
+}
+
+<h2>Reviews</h2>
+
+@{
+    var reviews = await db.Reviews
+        .Include(r => r.Book)
+        .Include(r => r.Reviewer)
+        .Include(r => r.Approver)
+        .OrderByDescending(r => r.ReviewDate)
+        .ToListAsync();
+}
+
+@if (!reviews.Any())
+{
+    <div class="alert alert-info">
+        There are no reviews to display.
+    </div>
+}
+else
+{
+    <table class="table table-striped table-sm">
+        <thead>
+            <tr>
+                <th>Reviewer</th>
+                <th>Book</th>
+                <th>Rating</th>
+                <th>Review</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Approver</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in reviews)
+            {
+                <tr>
+                    <td>
+                        @if (r.Reviewer != null)
+                        {
+                            @($"{r.Reviewer.FirstName} {r.Reviewer.LastName}")
+                        }
+                        else
+                        {
+                            <span class="text-muted">User #@r.ReviewerID</span>
+                        }
+                    </td>
+                    <td>
+                        @if (r.Book != null)
+                        {
+                            <a asp-controller="Books" asp-action="Details" asp-route-id="@r.Book.BookID">
+                                @r.Book.Title
+                            </a>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Book #@r.BookID</span>
+                        }
+                    </td>
+                    <td>@r.Rating / 5</td>
+                    <td>@r.ReviewText</td>
+                    <td>@r.ReviewDate.ToString("MM/dd/yyyy")</td>
+                    <td>
+                        @if (r.IsApproved == null)
+                        {
+                            <span class="text-muted">Pending</span>
+                        }
+                        else if (r.IsApproved == true)
+                        {
+                            <span class="text-success">Approved</span>
+                        }
+                        else
+                        {
+                            <span class="text-danger">Rejected</span>
+                        }
+                    </td>
+                    <td>
+                        @if (r.Approver != null)
+                        {
+                            @($"{r.Approver.FirstName} {r.Approver.LastName}")
+                        }
+                        else
+                        {
+                            <span>-</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

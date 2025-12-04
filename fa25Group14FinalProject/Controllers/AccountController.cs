@@ -1,15 +1,15 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-
-//TODO: Change these using statements to match your project
+using Microsoft.EntityFrameworkCore;
 using fa25Group14FinalProject.DAL;
 using fa25Group14FinalProject.Models;
-using fa25Group14FinalProject.Utilities;
+using fa25Group14FinalProject.Utilities; // Assuming you have an Email/Utilities service
 using System;
-using System.Runtime.Intrinsics.Arm;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Collections.Generic; // Added for List
 
-//TODO: Change this namespace to match your project
 namespace fa25Group14FinalProject.Controllers
 {
     [Authorize]
@@ -17,7 +17,6 @@ namespace fa25Group14FinalProject.Controllers
     {
         private readonly SignInManager<AppUser> _signInManager;
         private readonly UserManager<AppUser> _userManager;
-        private readonly PasswordValidator<AppUser> _passwordValidator;
         private readonly AppDbContext _context;
 
         public AccountController(AppDbContext appDbContext, UserManager<AppUser> userManager, SignInManager<AppUser> signIn)
@@ -25,11 +24,18 @@ namespace fa25Group14FinalProject.Controllers
             _context = appDbContext;
             _userManager = userManager;
             _signInManager = signIn;
-            //user manager only has one password validator
-            _passwordValidator = (PasswordValidator<AppUser>)userManager.PasswordValidators.FirstOrDefault();
+            // Note: Password validation will be handled by the Identity configuration (Startup.cs)
         }
 
-        // GET: /Account/Register
+        // Helper: Get the current logged-in user ID
+        private String GetUserID()
+        {
+            return _userManager.GetUserId(User);
+        }
+
+        // --- ACCOUNT CREATION (REGISTER) ---
+
+        // GET: /Account/Register (Customer Functionality: Create Account)
         [AllowAnonymous]
         public IActionResult Register()
         {
@@ -42,74 +48,67 @@ namespace fa25Group14FinalProject.Controllers
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> Register(RegisterViewModel rvm)
         {
-            //if registration data is valid, create a new user on the database
             if (ModelState.IsValid == false)
             {
-                //this is the sad path - something went wrong, 
-                //return the user to the register page to try again
                 return View(rvm);
             }
 
-            //this code maps the RegisterViewModel to the AppUser domain model
+            // Map RegisterViewModel to AppUser domain model and include all required fields
             AppUser newUser = new AppUser
             {
                 UserName = rvm.Email,
                 Email = rvm.Email,
                 PhoneNumber = rvm.PhoneNumber,
-
-                //TODO: Add the rest of the custom user fields here
-                //FirstName is included as an example
                 FirstName = rvm.FirstName,
-                LastName = rvm.LastName
-
+                LastName = rvm.LastName,
+                //commented out for milestone 6
+                Address = rvm.Address,
+                City = rvm.City,
+                State = rvm.State,
+                ZipCode = rvm.ZipCode,
+                IsActive = true // Accounts are active by default
             };
 
-            //create AddUserModel
             AddUserModel aum = new AddUserModel()
             {
                 User = newUser,
                 Password = rvm.Password,
-
-                //TODO: You will need to change this value if you want to 
-                //add the user to a different role - just specify the role name.
-                RoleName = "Customer"
+                RoleName = "Customer" // All new sign-ups are customers
             };
 
-            //This code uses the AddUser utility to create a new user with the specified password
             IdentityResult result = await Utilities.AddUser.AddUserWithRoleAsync(aum, _userManager, _context);
 
-            if (result.Succeeded) //everything is okay
+            if (result.Succeeded)
             {
-                //NOTE: This code logs the user into the account that they just created
-                //You may or may not want to log a user in directly after they register - check
-                //the business rules!
-                Microsoft.AspNetCore.Identity.SignInResult result2 = await _signInManager.PasswordSignInAsync(rvm.Email, rvm.Password, false, lockoutOnFailure: false);
+                // Send confirmation email (Required) [cite: 131]
+                // await EmailUtils.SendEmailAsync(newUser.Email, "Team XX: Account Confirmation", "Welcome to Bevo's Books!");
 
-                //Send the user to the home page
+                await _signInManager.PasswordSignInAsync(rvm.Email, rvm.Password, false, lockoutOnFailure: false);
+
                 return RedirectToAction("Index", "Home");
             }
-            else  //the add user operation didn't work, and we need to show an error message
+            else
             {
                 foreach (IdentityError error in result.Errors)
                 {
                     ModelState.AddModelError("", error.Description);
                 }
-
-                //send user back to page with errors
                 return View(rvm);
             }
         }
+
+        // --- LOGIN/LOGOUT ---
 
         // GET: /Account/Login
         [AllowAnonymous]
         public IActionResult Login(string returnUrl)
         {
-            if (User.Identity.IsAuthenticated) //user has been redirected here from a page they're not authorized to see
+            if (User.Identity.IsAuthenticated)
             {
                 return View("Error", new string[] { "Access Denied" });
             }
-            _signInManager.SignOutAsync(); //this removes any old cookies hanging around
-            ViewBag.ReturnUrl = returnUrl; //pass along the page the user should go back to
+            _signInManager.SignOutAsync();
+            ViewBag.ReturnUrl = returnUrl;
             return View();
         }
 
@@ -119,126 +118,39 @@ namespace fa25Group14FinalProject.Controllers
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> Login(LoginViewModel lvm)
         {
-            //if user forgot to include user name or password,
-            //send them back to the login page to try again
             if (ModelState.IsValid == false)
             {
                 ModelState.AddModelError("", "Invalid login attempt.");
                 return View(lvm);
             }
 
-            string returnUrl = Request.Query["returnUrl"].ToString();
+            // 1. Check if the account is disabled (Required)
+            AppUser user = _context.Users.FirstOrDefault(u => u.UserName == lvm.Email);
 
+            if (user != null && user.IsActive == false)
+            {
+                ModelState.AddModelError("", "Your account has been disabled. Please contact support.");
+                return View(lvm);
+            }
 
-            //attempt to sign the user in using the SignInManager
+            // 2. Attempt to sign the user in
             Microsoft.AspNetCore.Identity.SignInResult result = await _signInManager.PasswordSignInAsync(lvm.Email, lvm.Password, lvm.RememberMe, lockoutOnFailure: false);
-            //if the login worked, take the user to either the url
-            //they requested OR the homepage if there isn't a specific url
+
             if (result.Succeeded)
             {
+                string returnUrl = Request.Query["returnUrl"].ToString();
 
-
-                // Ensure returnUrl is retrieved correctly if you followed Solution 1
-                string finalReturnUrl = returnUrl;
-
-                // If using Solution 1:
-                // string finalReturnUrl = Request.Query["returnUrl"].ToString();
-
-                // Use string.IsNullOrEmpty to safely check for null AND empty string
-                if (string.IsNullOrEmpty(finalReturnUrl))
+                if (string.IsNullOrEmpty(returnUrl))
                 {
-                    return Redirect("/"); // Redirect to home page
+                    return Redirect("/");
                 }
 
-                return Redirect(finalReturnUrl);
-
-
-                //return ?? "/" means if returnUrl is null, substitute "/" (home)
-                //return RedirectToAction("Index", "Home");
-                //return Redirect(returnUrl ?? "/");
+                return Redirect(returnUrl);
             }
-            else //log in was not successful
+            else
             {
-                //add an error to the model to show invalid attempt
                 ModelState.AddModelError("", "Invalid login attempt.");
-                //send user back to login page to try again
                 return View(lvm);
-            }
-        }
-
-        public IActionResult AccessDenied()
-        {
-            return View("Error", new string[] { "You are not authorized for this resource" });
-        }
-
-        //GET: Account/Index
-        public IActionResult Index()
-        {
-            IndexViewModel ivm = new IndexViewModel();
-
-            //get user info
-            String id = User.Identity.Name;
-            AppUser user = _context.Users.FirstOrDefault(u => u.UserName == id);
-
-            //populate the view model
-            //(i.e. map the domain model to the view model)
-            ivm.Email = user.Email;
-            ivm.HasPassword = true;
-            ivm.UserID = user.Id;
-            ivm.UserName = user.UserName;
-
-            //send data to the view
-            return View(ivm);
-        }
-
-
-
-        //Logic for change password
-        // GET: /Account/ChangePassword
-        public ActionResult ChangePassword()
-        {
-            return View();
-        }
-
-
-
-        // POST: /Account/ChangePassword
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<ActionResult> ChangePassword(ChangePasswordViewModel cpvm)
-        {
-            //if user forgot a field, send them back to 
-            //change password page to try again
-            if (ModelState.IsValid == false)
-            {
-                return View(cpvm);
-            }
-
-            //Find the logged in user using the UserManager
-            AppUser userLoggedIn = await _userManager.FindByNameAsync(User.Identity.Name);
-
-            //Attempt to change the password using the UserManager
-            var result = await _userManager.ChangePasswordAsync(userLoggedIn, cpvm.OldPassword, cpvm.NewPassword);
-
-            //if the attempt to change the password worked
-            if (result.Succeeded)
-            {
-                //sign in the user with the new password
-                await _signInManager.SignInAsync(userLoggedIn, isPersistent: false);
-
-                //send the user back to the home page
-                return RedirectToAction("Index", "Home");
-            }
-            else //attempt to change the password didn't work
-            {
-                //Add all the errors from the result to the model state
-                foreach (var error in result.Errors)
-                {
-                    ModelState.AddModelError("", error.Description);
-                }
-
-                //send the user back to the change password page to try again
-                return View(cpvm);
             }
         }
 
@@ -247,11 +159,211 @@ namespace fa25Group14FinalProject.Controllers
         [ValidateAntiForgeryToken]
         public IActionResult LogOff()
         {
-            //sign the user out of the application
             _signInManager.SignOutAsync();
-
-            //send the user back to the home page
             return RedirectToAction("Index", "Home");
+        }
+
+        // --- ACCOUNT MANAGEMENT (CUSTOMER) ---
+
+        // GET: Account/Index (View Account Information & Cards)
+        //added for milestone 6
+        [Authorize]
+        public async Task<IActionResult> Index()
+        {
+            String id = GetUserID();
+            // Fetch user data including cards
+            AppUser user = await _context.Users
+                .Include(u => u.Cards)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (user == null) return NotFound();
+
+            AccountIndexViewModel viewModel = new AccountIndexViewModel
+            {
+                Id = user.Id,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                UserName = user.UserName,
+                Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                Address = user.Address,
+                City = user.City,
+                State = user.State,
+                ZipCode = user.ZipCode,
+                Cards = user.Cards // Pass the related card collection
+            };
+            return View(viewModel);
+        }
+
+        // GET: Account/Modify (Modify allowed fields)
+        public async Task<IActionResult> Modify()
+        {
+            String id = GetUserID();
+            AppUser user = await _userManager.FindByIdAsync(id);
+
+            return View(user);
+        }
+
+        // POST: Account/Modify
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Modify([Bind("Id,FirstName,LastName,Address,City,State,ZipCode,PhoneNumber")] AppUser updatedUser)
+        {
+            ModelState.Remove("Email");
+            ModelState.Remove("UserName");
+
+            if (ModelState.IsValid == false)
+            {
+                // Rename variable to avoid CS0136 shadowing and handle possible null for CS8600
+                var userToModifyView = await _userManager.FindByIdAsync(updatedUser.Id);
+                if (userToModifyView == null) return NotFound();
+                return View(userToModifyView);
+            }
+
+            // Use a different variable name to avoid shadowing
+            var userToModify = _context.Users.FirstOrDefault(u => u.Id == updatedUser.Id);
+
+            if (userToModify == null) return NotFound();
+
+            // Update only the allowed fields [cite: 66]
+            userToModify.FirstName = updatedUser.FirstName;
+            userToModify.LastName = updatedUser.LastName;
+            userToModify.Address = updatedUser.Address;
+            userToModify.PhoneNumber = updatedUser.PhoneNumber;
+            userToModify.City = updatedUser.City;
+            userToModify.State = updatedUser.State;
+            userToModify.ZipCode = updatedUser.ZipCode;
+
+            _context.Update(userToModify);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Account successfully updated.";
+            return RedirectToAction(nameof(Index));
+        }
+
+
+        // GET: /Account/ChangePassword
+        public ActionResult ChangePassword()
+        {
+            return View();
+        }
+
+        // POST: /Account/ChangePassword
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> ChangePassword(ChangePasswordViewModel cpvm)
+        {
+            if (ModelState.IsValid == false)
+            {
+                return View(cpvm);
+            }
+
+            AppUser userLoggedIn = await _userManager.FindByNameAsync(User.Identity.Name);
+
+            // Requires verification by entering in the old password (handled by ChangePasswordAsync) [cite: 71]
+            var result = await _userManager.ChangePasswordAsync(userLoggedIn, cpvm.OldPassword, cpvm.NewPassword);
+
+            if (result.Succeeded)
+            {
+                // Send email notification for password change (Required) [cite: 133]
+                // await EmailUtils.SendEmailAsync(userLoggedIn.Email, "Team XX: Password Changed", "Your password has been successfully updated.");
+
+                await _signInManager.SignInAsync(userLoggedIn, isPersistent: false);
+
+                TempData["SuccessMessage"] = "Password successfully changed.";
+                return RedirectToAction(nameof(Index));
+            }
+            else
+            {
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError("", error.Description);
+                }
+                return View(cpvm);
+            }
+        }
+
+        // --- CREDIT CARD MANAGEMENT ---
+
+        // GET: Account/AddCard (Accessed from Account/Index)
+        public async Task<IActionResult> AddCard()
+        {
+            String id = GetUserID();
+            AppUser user = await _context.Users.Include(u => u.Cards).FirstOrDefaultAsync(u => u.Id == id);
+
+            // Check card limit (up to 3 maximum credit cards per customer) 
+            if (user.Cards.Count >= 3)
+            {
+                TempData["ErrorMessage"] = "You have reached the maximum limit of 3 credit cards.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            return View(new Card());
+        }
+        // POST: Account/AddCard
+        // POST: Account/AddCard
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddCard([Bind("CardNumber,CardType")] Card newCard)
+        {
+            // 1. Sanitize CardNumber and remove its previous ModelState error (if necessary)
+            if (!string.IsNullOrWhiteSpace(newCard.CardNumber))
+            {
+                newCard.CardNumber = new string(newCard.CardNumber.Where(char.IsDigit).ToArray());
+                ModelState.Remove(nameof(newCard.CardNumber));
+            }
+
+            // 2. Set the foreign key
+            newCard.CustomerID = GetUserID();
+
+            // 3. CRITICAL FIX: Remove the ModelState error for CustomerID
+            // The Model Binder marked this field invalid because it wasn't in the form, 
+            // even though we are setting it manually.
+            ModelState.Remove(nameof(newCard.CustomerID));
+
+            if (ModelState.IsValid)
+            {
+                // Re-check count inside POST to prevent concurrent adds exceeding the limit
+                int cardCount = _context.Cards.Count(c => c.CustomerID == newCard.CustomerID);
+                if (cardCount >= 3)
+                {
+                    ModelState.AddModelError("", "Cannot add card: Maximum limit of 3 reached.");
+                    return View(newCard);
+                }
+
+                _context.Cards.Add(newCard);
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = $"New {newCard.CardType} card added successfully.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // This return View is what causes the refresh if the model is invalid
+            return View(newCard);
+        }
+        // POST: Account/RemoveCard/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveCard(int id)
+        {
+            Card cardToRemove = await _context.Cards
+                .FirstOrDefaultAsync(c => c.CardID == id && c.CustomerID == GetUserID());
+
+            if (cardToRemove == null) return NotFound();
+
+            // Note: If the card is in use on a finalized order, deleting the card record is fine,
+            // as the Order table retains the CardID (FK) but not the Navigational Property.
+
+            _context.Cards.Remove(cardToRemove);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Credit card removed successfully.";
+            return RedirectToAction(nameof(Index));
+        }
+
+
+        public IActionResult AccessDenied()
+        {
+            return View("Error", new string[] { "You are not authorized for this resource" });
         }
     }
 }

@@ -12,40 +12,57 @@
 <body>
     <div>
         <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#nav-content" aria-controls="nav-content" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#nav-content"
+                    aria-controls="nav-content" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
+
             <div class="collapse navbar-collapse" id="nav-content">
                 <ul class="navbar-nav mr-auto">
                     <li class="nav-item">
                         <a asp-controller="Home" asp-action="Index" class="nav-link">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a asp-controller="Products" asp-action="Index" class="nav-link">Products</a>
+                        <a asp-controller="Books" asp-action="Search" class="nav-link">Books</a>
                     </li>
 
                     @if (User.Identity.IsAuthenticated)
                     {
-                        @* Link for Orders: Visible to all authenticated users (Admins and Customers) *@
+                        <!-- Orders (history) for all signed-in users -->
                         <li class="nav-item">
                             <a asp-controller="Orders" asp-action="Index" class="nav-link">Orders</a>
                         </li>
 
+                        <!-- Shopping cart lives in OrderDetails/Index -->
+                        <li class="nav-item">
+                            <a asp-controller="OrderDetails" asp-action="Index" class="nav-link">Cart</a>
+                        </li>
+
+                        @* Customer-only account page *@
+                        @if (!User.IsInRole("Admin"))
+                        {
+                            <li class="nav-item">
+                                <a asp-controller="Account" asp-action="Index" class="nav-link">Manage Account</a>
+                            </li>
+                        }
+
+                        @* Admin-only tools *@
                         @if (User.IsInRole("Admin"))
                         {
-                            @* Link for Suppliers: Only visible to Admins *@
                             <li class="nav-item">
                                 <a asp-controller="Suppliers" asp-action="Index" class="nav-link">Suppliers</a>
                             </li>
-
-                            @* Link for Admin Tools *@
-                            <li>
+                            <li class="nav-item">
                                 <a asp-controller="RoleAdmin" asp-action="Index" class="nav-link">Manage Users</a>
+                            </li>
+                            <li class="nav-item">
+                                <a asp-controller="Promotions" asp-action="Index" class="nav-link">Promotions</a>
                             </li>
                         }
                     }
                 </ul>
             </div>
+
             @await Html.PartialAsync("_LoginPartial")
         </nav>
     </div>
@@ -59,6 +76,5 @@
     <script src="~/lib/twitter-bootstrap/js/bootstrap.min.js"></script>
     <script src="~/lib/jquery-validate/jquery.validate.js"></script>
     <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.js"></script>
-
 </body>
 </html>

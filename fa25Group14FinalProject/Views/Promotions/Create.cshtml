@@ -1,0 +1,73 @@
+﻿@model fa25Group14FinalProject.Models.Coupon
+
+@{
+    ViewData["Title"] = "Create Coupon";
+}
+
+<h1>Create New Coupon</h1>
+
+<p class="text-muted">
+    Use this form to add a new promotion code that can be entered at checkout.
+</p>
+
+<hr />
+
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="Create" method="post">
+            <!-- SHOW ALL MODEL ERRORS PROMINENTLY -->
+            <div asp-validation-summary="All" class="text-danger"></div>
+
+            @* Coupon Code *@
+            <div class="form-group">
+                <label asp-for="CouponCode" class="control-label"></label>
+                <input asp-for="CouponCode" class="form-control" />
+                <span asp-validation-for="CouponCode" class="text-danger"></span>
+                <small class="form-text text-muted">
+                    Example: SAVE10, FREESHIP, FALL25
+                </small>
+            </div>
+
+            @* Coupon Type (enum) *@
+            <div class="form-group">
+                <label asp-for="CouponType" class="control-label"></label>
+                <select asp-for="CouponType"
+                        class="form-control"
+                        asp-items="Html.GetEnumSelectList<fa25Group14FinalProject.Models.CouponType>()">
+                </select>
+                <span asp-validation-for="CouponType" class="text-danger"></span>
+                <small class="form-text text-muted">
+                    PercentOff = % off the subtotal, FreeShipping = waives shipping above a threshold.
+                </small>
+            </div>
+
+            @* Percentage Off (PercentOff only) *@
+            <div class="form-group">
+                <label asp-for="DiscountPercent" class="control-label"></label>
+                <input asp-for="DiscountPercent" class="form-control" />
+                <span asp-validation-for="DiscountPercent" class="text-danger"></span>
+                <small class="form-text text-muted">
+                    For PercentOff coupons only (e.g., 10 for 10% off).
+                </small>
+            </div>
+
+            @* Free Shipping Threshold (FreeShipping only) *@
+            <div class="form-group">
+                <label asp-for="FreeThreshold" class="control-label"></label>
+                <input asp-for="FreeThreshold" class="form-control" />
+                <span asp-validation-for="FreeThreshold" class="text-danger"></span>
+                <small class="form-text text-muted">
+                    For FreeShipping coupons only. Use 0 for all orders, or a dollar minimum like 30.
+                </small>
+            </div>
+
+            @* Status will be set to true in the controller; keep hidden here *@
+            <input type="hidden" asp-for="Status" />
+
+            <div class="form-group mt-3">
+                <input type="submit" value="Create" class="btn btn-primary" />
+                <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+            </div>
+        </form>
+    </div>
+</div>

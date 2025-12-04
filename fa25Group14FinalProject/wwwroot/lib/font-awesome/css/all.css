@@ -558,7 +558,7 @@ readers do not read off random characters that represent icons */
 .fa-blender:before {
   content: "\f517"; }
 
-.fa-blender-phone:before {
+.fa-blender-PhoneNumber:before {
   content: "\f6b6"; }
 
 .fa-blind:before {
@@ -2139,10 +2139,10 @@ readers do not read off random characters that represent icons */
 .fa-heading:before {
   content: "\f1dc"; }
 
-.fa-headphones:before {
+.fa-headPhoneNumbers:before {
   content: "\f025"; }
 
-.fa-headphones-alt:before {
+.fa-headPhoneNumbers-alt:before {
   content: "\f58f"; }
 
 .fa-headset:before {
@@ -2694,16 +2694,16 @@ readers do not read off random characters that represent icons */
 .fa-microchip:before {
   content: "\f2db"; }
 
-.fa-microphone:before {
+.fa-microPhoneNumber:before {
   content: "\f130"; }
 
-.fa-microphone-alt:before {
+.fa-microPhoneNumber-alt:before {
   content: "\f3c9"; }
 
-.fa-microphone-alt-slash:before {
+.fa-microPhoneNumber-alt-slash:before {
   content: "\f539"; }
 
-.fa-microphone-slash:before {
+.fa-microPhoneNumber-slash:before {
   content: "\f131"; }
 
 .fa-microscope:before {
@@ -3006,22 +3006,22 @@ readers do not read off random characters that represent icons */
 .fa-phoenix-squadron:before {
   content: "\f511"; }
 
-.fa-phone:before {
+.fa-PhoneNumber:before {
   content: "\f095"; }
 
-.fa-phone-alt:before {
+.fa-PhoneNumber-alt:before {
   content: "\f879"; }
 
-.fa-phone-slash:before {
+.fa-PhoneNumber-slash:before {
   content: "\f3dd"; }
 
-.fa-phone-square:before {
+.fa-PhoneNumber-square:before {
   content: "\f098"; }
 
-.fa-phone-square-alt:before {
+.fa-PhoneNumber-square-alt:before {
   content: "\f87b"; }
 
-.fa-phone-volume:before {
+.fa-PhoneNumber-volume:before {
   content: "\f2a0"; }
 
 .fa-photo-video:before {

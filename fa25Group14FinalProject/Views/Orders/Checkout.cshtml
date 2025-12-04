@@ -1,0 +1,126 @@
+@model fa25Group14FinalProject.Models.Order
+@using Microsoft.AspNetCore.Mvc.Rendering
+
+@{
+    ViewData["Title"] = "Checkout";
+    var cards = ViewBag.AllCards as SelectList;
+}
+
+<h2>Checkout</h2>
+<hr />
+
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">
+        @TempData["ErrorMessage"]
+    </div>
+}
+
+@if (Model == null || Model.OrderDetails == null || !Model.OrderDetails.Any())
+{
+    <div class="alert alert-info">
+        Your cart is empty. Please add some books before checking out.
+    </div>
+
+    <a asp-controller="Books" asp-action="Search" class="btn btn-primary">
+        Back to Book Search
+    </a>
+}
+else
+{
+    <div class="row">
+        <!-- LEFT SIDE: Payment + Coupon -->
+        <div class="col-md-5">
+            <h4>Payment & Promotions</h4>
+            <hr />
+
+            @using (Html.BeginForm("PlaceOrder", "Orders", FormMethod.Post))
+            {
+                @Html.AntiForgeryToken()
+
+                @* card selection posts as SelectedCardID to match action signature *@
+                <div class="form-group">
+                    <label for="SelectedCardID">Select a Card</label>
+                    <select id="SelectedCardID"
+                            name="SelectedCardID"
+                            class="form-control"
+                            asp-items="cards">
+                        <option value="">-- Select a card --</option>
+                    </select>
+                    @Html.ValidationMessage("SelectedCardID", "", new { @class = "text-danger" })
+                </div>
+
+                <div class="form-group mt-3">
+                    <label for="CouponCode">Coupon Code (optional)</label>
+                    <input type="text"
+                           id="CouponCode"
+                           name="CouponCode"
+                           class="form-control"
+                           placeholder="Enter coupon code if you have one" />
+                    @Html.ValidationMessage("CouponCode", "", new { @class = "text-danger" })
+                </div>
+
+                <button type="submit" class="btn btn-success mt-3">
+                    Place Order
+                </button>
+
+                <a asp-controller="OrderDetails" asp-action="Index"
+                   class="btn btn-secondary mt-3">
+                    Back to Cart
+                </a>
+            }
+        </div>
+
+        <!-- RIGHT SIDE: Order Summary -->
+        <div class="col-md-7">
+            <h4>Order Summary</h4>
+            <hr />
+
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Book</th>
+                        <th class="text-center">Qty</th>
+                        <th class="text-right">Price</th>
+                        <th class="text-right">Extended</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var od in Model.OrderDetails)
+                    {
+                        <tr>
+                            <td>@od.Book.Title</td>
+                            <td class="text-center">@od.Quantity</td>
+                            <td class="text-right">@od.Price.ToString("C")</td>
+                            <td class="text-right">@od.ExtendedPrice.ToString("C")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <dl class="row">
+                <dt class="col-sm-6 text-right">Subtotal:</dt>
+                <dd class="col-sm-6 text-right">@Model.Subtotal.ToString("C")</dd>
+
+                @* DiscountAmount will usually be 0 at this stage; it will show after PlaceOrder *@
+                @if (Model.DiscountAmount.HasValue && Model.DiscountAmount.Value > 0)
+                {
+                    <dt class="col-sm-6 text-right text-success">Discount:</dt>
+                    <dd class="col-sm-6 text-right text-success">
+                        -@Model.DiscountAmount.Value.ToString("C")
+                    </dd>
+                }
+
+                <dt class="col-sm-6 text-right">Shipping Fee:</dt>
+                <dd class="col-sm-6 text-right">@Model.ShippingFee.ToString("C")</dd>
+
+                <dt class="col-sm-6 text-right font-weight-bold">Estimated Total:</dt>
+                <dd class="col-sm-6 text-right font-weight-bold">
+                    @Model.OrderTotal.ToString("C")
+                </dd>
+            </dl>
+        </div>
+    </div>
+}

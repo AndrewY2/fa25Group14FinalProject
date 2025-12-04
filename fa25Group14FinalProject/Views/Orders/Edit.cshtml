@@ -1,4 +1,4 @@
-@model Yun_Andrew_HW5.Models.Order
+@model fa25Group14FinalProject.Models.Order
 
 @{
     ViewData["Title"] = "Edit";
@@ -11,9 +11,9 @@
     <div class="col-md-5">
 
         @* MATCHING SCREENSHOT LAYOUT: Display order and user info as read-only text *@
-        <p><strong>Order Number:</strong> @Html.DisplayFor(model => model.OrderNumber)</p>
-        <p><strong>Full Name:</strong> @Model.User.FirstName @Model.User.LastName</p>
-        <p><strong>Email:</strong> @Model.User.Email</p>
+        <p><strong>Order Number:</strong> @Html.DisplayFor(model => model.OrderID)</p>
+        <p><strong>Full Name:</strong> @Model.Customer.FirstName @Model.Customer.LastName</p>
+        <p><strong>Email:</strong> @Model.Customer.Email</p>
         <p><strong>Order Date:</strong> @Html.DisplayFor(model => model.OrderDate)</p>
 
         <form asp-action="Edit">
@@ -22,11 +22,11 @@
             @* Part Five, Step 9b: Add a hidden element for OrderID *@
             <input type="hidden" asp-for="OrderID" />
 
-            <div class="form-group">
+          @*   <div class="form-group">
                 <label asp-for="OrderNotes" class="control-label"></label>
                 <input asp-for="OrderNotes" class="form-control" />
                 <span asp-validation-for="OrderNotes" class="text-danger"></span>
-            </div>
+            </div> *@
 
             <div class="form-group">
                 @* Changed value to "Save" to match screenshot *@
@@ -59,8 +59,8 @@
                     @foreach (var od in Model.OrderDetails)
                     {
                         <tr>
-                            <td>@Html.DisplayFor(item => od.Product.Name)</td>
-                            <td>@Html.DisplayFor(item => od.ProductPrice)</td>
+                            <td>@Html.DisplayFor(item => od.ProductName)</td>
+                            <td>@Html.DisplayFor(item => od.Price)</td>
                             <td>@Html.DisplayFor(item => od.Quantity)</td>
                             <td>@Html.DisplayFor(item => od.ExtendedPrice)</td>
                         </tr>

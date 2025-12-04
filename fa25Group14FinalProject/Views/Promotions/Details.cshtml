@@ -1,0 +1,81 @@
+﻿@model fa25Group14FinalProject.Models.Coupon
+
+@{
+    ViewData["Title"] = "Coupon Details";
+}
+
+<h1>Coupon Details</h1>
+<hr />
+
+<div class="row">
+    <div class="col-md-6">
+        <dl class="row">
+            <dt class="col-sm-4">ID</dt>
+            <dd class="col-sm-8">@Model.CouponID</dd>
+
+            <dt class="col-sm-4">Code</dt>
+            <dd class="col-sm-8">@Model.CouponCode</dd>
+
+            <dt class="col-sm-4">Type</dt>
+            <dd class="col-sm-8">@Model.CouponType</dd>
+
+            <dt class="col-sm-4">Percent Off</dt>
+            <dd class="col-sm-8">
+                @if (Model.CouponType == fa25Group14FinalProject.Models.CouponType.PercentOff
+                    && Model.DiscountPercent.HasValue)
+                {
+                    @Model.DiscountPercent.Value.ToString("0")@("%")
+                }
+                else
+                {
+                    @:—
+                }
+            </dd>
+
+            <dt class="col-sm-4">Free Shipping Threshold</dt>
+            <dd class="col-sm-8">
+                @if (Model.CouponType == fa25Group14FinalProject.Models.CouponType.FreeShipping)
+                {
+                    if (Model.FreeThreshold.HasValue && Model.FreeThreshold.Value > 0)
+                    {
+                        @Model.FreeThreshold.Value.ToString("C")
+                    }
+                    else
+                    {
+                        @:All orders
+                    }
+                }
+                else
+                {
+                    @:—
+                }
+            </dd>
+
+            <dt class="col-sm-4">Status</dt>
+            <dd class="col-sm-8">
+                @if (Model.Status)
+                {
+                    <span class="text-success font-weight-bold">Enabled</span>
+                }
+                else
+                {
+                    <span class="text-danger font-weight-bold">Disabled</span>
+                }
+            </dd>
+        </dl>
+
+        <div class="mt-3">
+            <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+
+            <form asp-action="ToggleStatus"
+                  asp-route-id="@Model.CouponID"
+                  method="post"
+                  class="d-inline">
+                <button type="submit"
+                        class="btn @(Model.Status ? "btn-warning" : "btn-success")">
+                    @(Model.Status ? "Disable" : "Enable")
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

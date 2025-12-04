@@ -24,6 +24,13 @@ namespace fa25Group14FinalProject.Seeding
                 await roleManager.CreateAsync(new IdentityRole("Customer"));
             }
 
+            //if the customer role doesn't exist, add it
+            if (await roleManager.RoleExistsAsync("Employee") == false)
+            {
+                //this code uses the role manager object to create the customer role
+                await roleManager.CreateAsync(new IdentityRole("Employee"));
+            }
+
         }
     }
 }

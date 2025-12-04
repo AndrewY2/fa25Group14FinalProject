@@ -1,45 +1,76 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema; // Required for [NotMapped]
 using fa25Group14FinalProject.Models;
 
 namespace fa25Group14FinalProject.Models
 {
     public class OrderDetail
     {
-        // Composite Key Setup (No explicit OrderDetailID needed)
-        // EF Core will use the foreign keys (OrderID and ProductID) as the composite primary key by convention.
-        // We can optionally add an explicit OrderDetailID if we need a simple primary key for scaffolding or other purposes.
+        // Primary Key (Explicit ID is good practice)
         public int OrderDetailID { get; set; }
 
         // Scalar Properties
 
-        // a. Quantity
+        [Display(Name = "Product Name")]
+        [Required(ErrorMessage = "Product name is required.")]
+        public string ProductName { get; set; }
+        // 1. Quantity
         [Display(Name = "Quantity")]
         [Required(ErrorMessage = "Quantity is required.")]
-        [Range(1, 100, ErrorMessage = "Quantity must be between 1 and 100.")]
+        [Range(1, int.MaxValue, ErrorMessage = "Quantity must be 1 or greater.")] // Adjusted max range to int.MaxValue
         public int Quantity { get; set; }
 
-        // b. Product price (the price of the product at the time of order)
-        // This is the price the customer actually paid for one unit.
-        [Display(Name = "Product Price")]
-        [Required(ErrorMessage = "Product Price is required.")]
+        // 2. Price (The selling price of the book unit at the time of order) - Renamed from ProductPrice
+        [Display(Name = "Price Paid")]
+        [Required(ErrorMessage = "Price is required.")]
         [DataType(DataType.Currency)]
-        public decimal ProductPrice { get; set; }
+        public decimal Price { get; set; }
 
-        // c. Extended price (quantity * product price at the time of the order)
+        // 3. Cost (The weighted average cost of the book unit at the time of order) - NEW FIELD for reporting
+        [Display(Name = "Average Cost")]
+        [Required(ErrorMessage = "Cost is required.")]
+        [DataType(DataType.Currency)]
+        public decimal Cost { get; set; }
+
+        // Extended price (quantity * selling price) - Read-Only Property
         [Display(Name = "Extended Price")]
         [DataType(DataType.Currency)]
-        public decimal ExtendedPrice { get; set; }
+        [NotMapped] // Tell EF not to map this to a database column (it's calculated)
+        public decimal ExtendedPrice
+        {
+            get { return Quantity * Price; }
+        }
+
+        // Inside OrderDetail model:
+        // ... (After ExtendedPrice) ...
+
+        // Helper Method for Coupon Preview (NotMapped)
+        public decimal GetUnitPriceAfterCoupon(decimal discountPercent)
+        {
+            if (discountPercent <= 0 || discountPercent > 100) return Price;
+
+            decimal discountFactor = 1.0m - (discountPercent / 100.0m);
+            return Price * discountFactor;
+        }
+
+        // Profit Margin for this item (ExtendedPrice - (Quantity * Cost)) - Read-Only Property
+        [Display(Name = "Profit Margin")]
+        [DataType(DataType.Currency)]
+        [NotMapped]
+        public decimal ProfitMargin
+        {
+            get { return ExtendedPrice - (Quantity * Cost); }
+        }
 
 
-        // Navigational Properties (Foreign Keys for the many-to-many join)
+        // Navigational Properties (Foreign Keys)
 
-        // Relationship 1: To Order (One-to-Many side)
-        // A single order detail is only associated with one order.
-        public virtual Order Order { get; set; }
+        // 1. Relationship to Order
+        public int OrderID { get; set; } // Explicit Foreign Key
+        public virtual Order? Order { get; set; }
 
-        // Relationship 2: To Product (One-to-Many side)
-        // A single order detail is only associated with one product.
-        public virtual Product Product { get; set; }
+        // 2. Relationship to Book - Renamed from 'Product'
+        public int BookID { get; set; } // Explicit Foreign Key (replaces old ProductID)
+        public virtual Book? Book { get; set; } // Navigational property (renamed from Product)
     }
 }
-

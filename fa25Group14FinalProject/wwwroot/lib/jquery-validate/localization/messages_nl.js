@@ -35,7 +35,7 @@ $.extend( $.validator.messages, {
 	// For validations in additional-methods.js
 	iban: "Vul hier een geldig IBAN in.",
 	dateNL: "Vul hier een geldige datum in.",
-	phoneNL: "Vul hier een geldig Nederlands telefoonnummer in.",
+	PhoneNumberNL: "Vul hier een geldig Nederlands telefoonnummer in.",
 	mobileNL: "Vul hier een geldig Nederlands mobiel telefoonnummer in.",
 	postalcodeNL: "Vul hier een geldige postcode in.",
 	bankaccountNL: "Vul hier een geldig bankrekeningnummer in.",

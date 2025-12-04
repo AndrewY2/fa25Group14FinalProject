@@ -1,23 +1,67 @@
-﻿@model IndexViewModel
-@{
-    ViewBag.Title = "Change Password";
-}
+﻿@model fa25Group14FinalProject.Models.AccountIndexViewModel
 
-<h2>@ViewBag.Title.</h2>
+<h2>Account Details</h2>
 
 <div>
-    <h4>Change your account settings</h4>
+    <h4>User Information</h4>
     <hr />
     <dl class="dl-horizontal">
+        <dt>Name:</dt>
+        <dd>@Model.FirstName @Model.LastName</dd>
+
         <dt>User Name:</dt>
         <dd>@Model.UserName</dd>
 
         <dt>Email:</dt>
         <dd>@Model.Email</dd>
 
-        <dt>Password:</dt>
-        <dd>
-            [@Html.ActionLink("Change your password", "ChangePassword")]
-        </dd>
+        <dt>Phone:</dt>
+        <dd>@Model.PhoneNumber</dd>
+
+        <dt>Address:</dt>
+        <dd>@Model.Address, @Model.City, @Model.State @Model.ZipCode</dd>
     </dl>
+
+    <p>
+        @Html.ActionLink("Edit Account Information", "Modify") |
+        @Html.ActionLink("Change Password", "ChangePassword")
+    </p>
 </div>
+
+<hr />
+
+<h3>💳 Credit Cards (@Model.Cards.Count / 3)</h3>
+
+@if (Model.Cards != null && Model.Cards.Count > 0)
+{
+    <table class="table">
+        <tr>
+            <th>Card Type</th>
+            <th>Card Number</th>
+            <th></th>
+        </tr>
+        @foreach (var card in Model.Cards)
+        {
+            <tr>
+                <td>@card.CardType</td>
+                <td>@card.CardNumber.Substring(card.CardNumber.Length - 4).PadLeft(card.CardNumber.Length, 'X')</td>
+                <td>
+                    <form asp-action="RemoveCard" method="post" asp-route-id="@card.CardID" style="display:inline;">
+                        <input type="submit" value="Remove" class="btn btn-danger btn-sm" />
+                    </form>
+                </td>
+            </tr>
+        }
+    </table>
+}
+else
+{
+    <p>You have no saved credit cards.</p>
+}
+
+@if (Model.Cards == null || Model.Cards.Count < 3)
+{
+    <p>
+        @Html.ActionLink("Add New Credit Card", "AddCard", null, new { @class = "btn btn-primary" })
+    </p>
+}

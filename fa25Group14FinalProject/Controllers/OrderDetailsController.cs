@@ -8,244 +8,290 @@ using Microsoft.EntityFrameworkCore;
 using fa25Group14FinalProject.DAL;
 using fa25Group14FinalProject.Models;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity; // **FIX 1: Added using for Identity**
+using Microsoft.AspNetCore.Identity;
 
 namespace fa25Group14FinalProject.Controllers
 {
-    [Authorize]
-    public class OrderDetailsController : Controller
+    // Restrict access to logged-in customers only for cart management
+    [Authorize(Roles = "Customer")]
+    public class OrderDetailsController : Controller // Name reverted to OrderDetailsController
     {
         private readonly AppDbContext _context;
-        private readonly UserManager<AppUser> _userManager; // **FIX 2: Added UserManager field**
+        private readonly UserManager<AppUser> _userManager;
 
-        // **FIX 3: Updated Constructor to include UserManager**
         public OrderDetailsController(AppDbContext context, UserManager<AppUser> userManager)
         {
             _context = context;
             _userManager = userManager;
         }
 
-        // GET: OrderDetails/Index
-        public async Task<IActionResult> Index(int? orderID)
+        // Helper: Get the current logged-in user ID
+        private String GetUserID()
         {
-            if (orderID == null)
-            {
-                return NotFound();
-            }
-
-            // NOTE: Security/Ownership checks require including the User here
-            var orderDetails = _context.OrderDetails
-                               .Where(od => od.Order.OrderID == orderID)
-                               .Include(od => od.Product);
-
-            // FIX: Include User for potential security checks (as per assignment requirements)
-            Order parentOrder = _context.Orders.Include(o => o.User).FirstOrDefault(o => o.OrderID == orderID);
-
-            if (parentOrder == null)
-            {
-                return NotFound();
-            }
-
-            // NOTE: Add your ownership check here (if needed for Index action)
-
-            ViewBag.OrderNumber = parentOrder.OrderNumber;
-            ViewBag.OrderID = parentOrder.OrderID;
-
-            return View(await orderDetails.ToListAsync());
+            return _userManager.GetUserId(User);
         }
 
-        // GET: OrderDetails/Create
-        public IActionResult Create(int orderID)
+        // Helper: Fetches the customer's current Shopping Cart (unplaced Order)
+        private Order GetShoppingCart()
         {
-            OrderDetail od = new OrderDetail();
-            Order order = _context.Orders.Find(orderID);
+            String userID = GetUserID();
 
-            if (order == null)
+            // Find the unplaced order (cart) for the current user.
+            Order cart = _context.Orders
+                .Include(o => o.OrderDetails)
+                    .ThenInclude(od => od.Book)
+                .FirstOrDefault(o => o.CustomerID == userID && o.OrderStatus == OrderStatus.InCart);
+
+            // If the user doesn't have a cart, create one
+            if (cart == null)
             {
-                return NotFound();
+                cart = new Order
+                {
+                    CustomerID = userID,
+                    OrderDate = DateTime.Now,
+                    OrderStatus = OrderStatus.InCart,
+                    ShippingFee = 0.00m
+                };
+                _context.Orders.Add(cart);
+                _context.SaveChanges();
             }
 
-            od.Order = order;
-            ViewBag.AllProducts = GetAllProducts();
+            bool cartModified = false;
+            string removeMessageKey = "CartRemovalMessages";
+            List<string> removalMessages = TempData[removeMessageKey] as List<string> ?? new List<string>();
 
-            return View(od);
+            // Logic to check for discontinued/out-of-stock items and update prices
+            var detailsToRemove = cart.OrderDetails
+                .Where(od => od.Book.BookStatus == true || od.Book.InventoryQuantity == 0)
+                .ToList();
+
+            foreach (var od in detailsToRemove)
+            {
+                string bookTitle = od.Book.Title;
+                string message = "";
+
+                // Check discontinued (70)
+                if (od.Book.BookStatus == true)
+                {
+                    message = $"'{bookTitle}' was discontinued and removed from your cart.";
+                }
+                // Check out of stock (67)
+                else if (od.Book.InventoryQuantity == 0)
+                {
+                    message = $"'{bookTitle}' went out of stock and was removed from your cart.";
+                }
+
+                // Only add message if it's new (70)
+                if (!string.IsNullOrWhiteSpace(message) && !removalMessages.Contains(message))
+                {
+                    removalMessages.Add(message);
+                }
+
+                cart.OrderDetails.Remove(od);
+                _context.OrderDetails.Remove(od);
+                cartModified = true;
+            }
+
+            // Update prices to current book price [cite: 232]
+            foreach (var od in cart.OrderDetails)
+            {
+                if (od.Price != od.Book.Price)
+                {
+                    od.Price = od.Book.Price;
+                    cartModified = true;
+                }
+            }
+            if (cartModified)
+            {
+                TempData[removeMessageKey] = removalMessages; // Preserve messages for the view
+                _context.SaveChanges();
+            }
+
+            return cart;
         }
 
-        // POST: OrderDetails/Create
+
+        // Helper: Calculates shipping fee dynamically (using AdminSettings if available, or defaults)
+        private decimal CalculateShippingFee(int bookCount)
+        {
+            if (bookCount == 0) return 0.00m;
+
+            // Look up dynamic settings (assuming AdminSettings is implemented)
+            // If AdminSettings is not implemented, use the default values
+            // (Shipping price is $3.50 for the first book, and $1.50 for each additional book. [cite: 246])
+
+            decimal firstBookFee = 3.50m;
+            decimal additionalBookFee = 1.50m;
+
+            return firstBookFee + (bookCount - 1) * additionalBookFee;
+        }
+
+        // --- CUSTOMER ACTIONS ---
+
+        // GET: OrderDetails/Index (The Shopping Cart Page)
+        public IActionResult Index()
+        {
+            Order cart = GetShoppingCart(); // Runs maintenance, updates current prices
+
+            // 1. Calculate Current Totals
+            int totalBooksInCart = cart.OrderDetails.Sum(od => od.Quantity);
+            decimal currentShippingFee = CalculateShippingFee(totalBooksInCart); // Accessing the helper
+            decimal currentSubtotal = cart.Subtotal; // Uses Order.Subtotal (no item discount)
+            decimal currentOrderTotal = currentSubtotal + currentShippingFee;
+
+            // 2. Fetch all active coupons (Requirement 72)
+            var activeCoupons = _context.Coupons
+                .Where(c => c.Status == true)
+                .ToList();
+
+            // 3. Calculate Potential Totals for the View
+            var potentialSavings = new List<dynamic>();
+
+            foreach (var coupon in activeCoupons)
+            {
+                decimal potentialShipping = currentShippingFee;
+                decimal potentialSubtotal = currentSubtotal;
+
+                if (coupon.CouponType == CouponType.FreeShipping)
+                {
+                    // Calculate potential total for Free Shipping
+                    if (coupon.FreeThreshold == 0 || currentSubtotal >= coupon.FreeThreshold)
+                    {
+                        potentialShipping = 0.00m;
+                    }
+                }
+                else if (coupon.CouponType == CouponType.PercentOff && coupon.DiscountPercent.HasValue)
+                {
+                    // Calculate potential total for Percent Off
+                    decimal discountFactor = 1.0m - (coupon.DiscountPercent.Value / 100.0m);
+                    potentialSubtotal *= discountFactor;
+                }
+
+                // Store calculation results
+                potentialSavings.Add(new
+                {
+                    Code = coupon.CouponCode,
+                    Type = coupon.CouponType.ToString(),
+                    PercentOff = coupon.DiscountPercent ?? 0m, // Pass percent for item-level display
+                    Savings = currentOrderTotal - (potentialSubtotal + potentialShipping),
+                    PotentialTotal = potentialSubtotal + potentialShipping
+                });
+            }
+
+            ViewBag.CurrentOrderTotal = currentOrderTotal;
+            ViewBag.CurrentShippingFee = currentShippingFee; // Need to pass shipping fee separately
+            ViewBag.PotentialSavings = potentialSavings;
+            ViewBag.ActiveCoupons = activeCoupons; // For basic coupon listing/messages
+
+            return View(cart);
+        }
+
+        // POST: OrderDetails/AddItem (Used when customer clicks "Add to Cart")
+        // This is the new 'Create' functionality
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(OrderDetail orderDetail, int SelectedProduct)
+        public async Task<IActionResult> AddItem(int BookID, int Quantity)
         {
-            // CRITICAL FIXES: Remove validation for all complex navigation properties
-            ModelState.Remove("Product");
-            ModelState.Remove("Order");
-            ModelState.Remove("Order.OrderNotes");
-            ModelState.Remove("Order.User");
-            ModelState.Remove("Order.UserId");
-            ModelState.Remove("Order.OrderNumber");
-            ModelState.Remove("Order.OrderDate");
+            Order cart = GetShoppingCart();
+            Book bookToAdd = _context.Books.Find(BookID);
 
-            int orderID = orderDetail.Order?.OrderID ?? 0;
-
-            if (ModelState.IsValid == false)
+            // Books that are out of stock cannot be added to the shopping cart [cite: 188]
+            if (bookToAdd == null || bookToAdd.BookStatus == true || bookToAdd.InventoryQuantity == 0)
             {
-                ViewBag.AllProducts = GetAllProducts(SelectedProduct);
-                orderDetail.Order = _context.Orders.Find(orderID);
-                return View(orderDetail);
+                TempData["ErrorMessage"] = "This book is currently unavailable or discontinued.";
+                return RedirectToAction("Details", "Books", new { id = BookID });
             }
 
-            // FIND AND SET ENTITIES
-            Product productFound = _context.Products.Find(SelectedProduct);
-            Order orderFound = _context.Orders.Find(orderID);
-
-            if (productFound == null || orderFound == null)
+            // Customers cannot add a quantity greater than the number in stock [cite: 198]
+            if (Quantity > bookToAdd.InventoryQuantity)
             {
-                ModelState.AddModelError("", "The selected product or parent order could not be found.");
-                ViewBag.AllProducts = GetAllProducts(SelectedProduct);
-                orderDetail.Order = _context.Orders.Find(orderID);
-                return View(orderDetail);
+                TempData["ErrorMessage"] = $"Cannot add {Quantity} copies. Only {bookToAdd.InventoryQuantity} are in stock.";
+                return RedirectToAction("Details", "Books", new { id = BookID });
             }
 
-            orderDetail.Product = productFound;
-            orderDetail.Order = orderFound;
+            OrderDetail existingOD = cart.OrderDetails.FirstOrDefault(od => od.BookID == BookID);
 
-            // CALCULATE AND SAVE
-            orderDetail.ProductPrice = productFound.Price;
-            orderDetail.ExtendedPrice = orderDetail.Quantity * orderDetail.ProductPrice;
+            if (existingOD != null)
+            {
+                int newTotalQuantity = existingOD.Quantity + Quantity;
+                if (newTotalQuantity > bookToAdd.InventoryQuantity)
+                {
+                    TempData["ErrorMessage"] = $"Adding {Quantity} would exceed stock. Only {bookToAdd.InventoryQuantity - existingOD.Quantity} more can be added.";
+                    return RedirectToAction("Details", "Books", new { id = BookID });
+                }
+                existingOD.Quantity = newTotalQuantity;
+            }
+            else
+            {
+                // Add new OrderDetail item to the cart
+                OrderDetail newOD = new OrderDetail
+                {
+                    Quantity = Quantity,
+                    BookID = BookID,
+                    Price = bookToAdd.Price, // Capture current selling price
+                    Cost = bookToAdd.Cost,    // Capture current weighted average cost
+                    ProductName = bookToAdd.Title
+                };
+                cart.OrderDetails.Add(newOD);
+            }
 
-            _context.Add(orderDetail);
             await _context.SaveChangesAsync();
-
-            return RedirectToAction("Details", "Orders", new { id = orderFound.OrderID });
+            return RedirectToAction(nameof(Index));
         }
 
-
-        // GET: OrderDetails/Edit/5
-        public async Task<IActionResult> Edit(int? id)
-        {
-            if (id == null) return NotFound();
-
-            var orderDetail = await _context.OrderDetails
-                .Include(od => od.Product)
-                .Include(od => od.Order)
-                    .ThenInclude(o => o.User)
-                .FirstOrDefaultAsync(m => m.OrderDetailID == id);
-
-            if (orderDetail == null) return NotFound();
-
-            return View(orderDetail);
-        }
-
-        // POST: OrderDetails/Edit/5
+        // POST: OrderDetails/Edit (Update quantity in the cart)
+        // Note: The action name must be 'Edit' to replace the old scaffolding action.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("OrderDetailID,Quantity")] OrderDetail orderDetail)
+        public async Task<IActionResult> Edit(int id, [Bind("OrderDetailID,Quantity")] OrderDetail orderDetail) // id is OrderDetailID
         {
-            if (id != orderDetail.OrderDetailID) return NotFound();
+            OrderDetail odToUpdate = _context.OrderDetails
+                .Include(od => od.Order)
+                .Include(od => od.Book)
+                .FirstOrDefault(od => od.OrderDetailID == id && od.Order.CustomerID == GetUserID());
 
-            // --- CRITICAL FINAL VALIDATION REMOVALS ---
+            if (odToUpdate == null || odToUpdate.Order.OrderStatus != OrderStatus.InCart) return NotFound();
 
-            // 1. **THE NEW DEFINITIVE FIX:** Remove validation for the entire Order navigation object.
-            ModelState.Remove("Order"); // Target the main navigation property
-
-            // 2. Remove validation for the Product navigation object (also missing)
-            ModelState.Remove("Product");
-
-            // 3. Remove validation for nested Order properties (safety net)
-            ModelState.Remove("Order.OrderNumber");
-            ModelState.Remove("Order.OrderDate");
-            ModelState.Remove("Order.OrderNotes");
-            ModelState.Remove("Order.User");
-            ModelState.Remove("Order.UserId");
-            ModelState.Remove("Order.OrderID");
-            // ------------------------------------------
-
-            if (ModelState.IsValid)
+            // Check max quantity [cite: 198]
+            if (orderDetail.Quantity > odToUpdate.Book.InventoryQuantity)
             {
-                // Eagerly load the required entities
-                OrderDetail odToUpdate = _context.OrderDetails
-                                                 .Include(od => od.Order)
-                                                 .Include(od => od.Product)
-                                                 .FirstOrDefault(od => od.OrderDetailID == id);
-
-                if (odToUpdate == null) return NotFound();
-
-                try
-                {
-                    int orderID = odToUpdate.Order.OrderID;
-
-                    // Update scalar fields and recalculate
-                    odToUpdate.Quantity = orderDetail.Quantity;
-                    odToUpdate.ExtendedPrice = odToUpdate.Quantity * odToUpdate.ProductPrice;
-
-                    _context.Update(odToUpdate);
-                    await _context.SaveChangesAsync();
-
-                    // Redirect to the Orders/Details page
-                    return RedirectToAction("Details", "Orders", new { id = orderID });
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!OrderDetailExists(orderDetail.OrderDetailID)) return NotFound();
-                    else throw;
-                }
+                TempData["ErrorMessage"] = $"Cannot set quantity to {orderDetail.Quantity}. Only {odToUpdate.Book.InventoryQuantity} are in stock.";
+                return RedirectToAction(nameof(Index));
             }
 
-            // If validation fails (due to invalid quantity), reload and return view 
-            var errorDetail = _context.OrderDetails
-                .Include(od => od.Order)
-                .Include(od => od.Product)
-                .FirstOrDefault(od => od.OrderDetailID == id);
+            // Customers can change the quantity of books [cite: 196]
+            if (orderDetail.Quantity <= 0)
+            {
+                _context.OrderDetails.Remove(odToUpdate);
+            }
+            else
+            {
+                odToUpdate.Quantity = orderDetail.Quantity;
+            }
 
-            errorDetail.Quantity = orderDetail.Quantity;
-
-            return View(errorDetail);
+            await _context.SaveChangesAsync();
+            return RedirectToAction(nameof(Index));
         }
 
-        // GET: OrderDetails/Delete/5
-        public async Task<IActionResult> Delete(int? id)
-        {
-            if (id == null) return NotFound();
-
-            var orderDetail = await _context.OrderDetails
-                               .Include(od => od.Product)
-                               .Include(od => od.Order)
-                               .FirstOrDefaultAsync(m => m.OrderDetailID == id);
-
-            if (orderDetail == null) return NotFound();
-
-            return View(orderDetail);
-        }
-
-        // POST: OrderDetails/Delete/5
+        // POST: OrderDetails/Delete (Remove item entirely)
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        public async Task<IActionResult> DeleteConfirmed(int id) // id is OrderDetailID
         {
-            var orderDetail = await _context.OrderDetails
-                               .Include(od => od.Order)
-                               .FirstOrDefaultAsync(r => r.OrderDetailID == id);
+            // Customers can delete them entirely [cite: 196]
+            OrderDetail odToDelete = _context.OrderDetails
+                .Include(od => od.Order)
+                .FirstOrDefault(od => od.OrderDetailID == id && od.Order.CustomerID == GetUserID());
 
-            if (orderDetail == null) return NotFound();
+            if (odToDelete == null || odToDelete.Order.OrderStatus != OrderStatus.InCart) return NotFound();
 
-            int orderID = orderDetail.Order.OrderID;
 
-            _context.OrderDetails.Remove(orderDetail);
+            _context.OrderDetails.Remove(odToDelete);
             await _context.SaveChangesAsync();
 
-            return RedirectToAction("Details", "Orders", new { id = orderID });
+            return RedirectToAction(nameof(Index));
         }
 
-        private bool OrderDetailExists(int id)
-        {
-            return _context.OrderDetails.Any(e => e.OrderDetailID == id);
-        }
-
-        private SelectList GetAllProducts(int? selectedId = null)
-        {
-            List<Product> products = _context.Products.OrderBy(p => p.Name).ToList();
-            SelectList allProducts = new SelectList(products, nameof(Product.ProductId), nameof(Product.Name), selectedId);
-            return allProducts;
-        }
+        // ❌ REMOVED: All scaffolding actions like GET: Edit, GET: Delete, and the old POST: Create helper methods.
+        /* The Index action is now the Shopping Cart view (using no ID parameter). */
     }
 }
