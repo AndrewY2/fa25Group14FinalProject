@@ -4,6 +4,7 @@ using System.Collections.Generic;
 namespace fa25Group14FinalProject.Models
 {
     public class Genre
+        //genres
     {
         // Primary Key
         public int GenreID { get; set; } // Matches the PK GenreID in the ERD [cite: 72]
