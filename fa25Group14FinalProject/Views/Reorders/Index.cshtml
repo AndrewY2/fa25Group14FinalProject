@@ -1,0 +1,61 @@
+﻿@{
+    ViewData["Title"] = "Book Procurement";
+}
+
+<h1>Book Procurement</h1>
+<hr />
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">
+        @TempData["SuccessMessage"]
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">
+        @TempData["ErrorMessage"]
+    </div>
+}
+
+<p class="text-muted">
+    Choose how you would like to order books from the supplier.
+</p>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title">Manual Reorder</h4>
+                <p class="card-text">
+                    Search for specific titles, review details and last cost, then place orders for any quantity.
+                </p>
+                <a asp-action="ManualOrder" class="btn btn-primary">Manual Reorder</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title">Automatic Inventory Check</h4>
+                <p class="card-text">
+                    Automatically find books below their reorder point and prepare suggested orders.
+                </p>
+                <a asp-action="AutomaticCheck" class="btn btn-outline-primary">Automatic Check</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title">View Books On Order</h4>
+                <p class="card-text">
+                    View and track books out for order.
+                </p>
+                <a asp-action="ViewBooksOnOrder" class="btn btn-primary">View Orders</a>
+            </div>
+        </div>
+    </div>
+</div>

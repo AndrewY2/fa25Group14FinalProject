@@ -158,7 +158,7 @@ namespace fa25Group14FinalProject.Controllers
                     {
                         BookID = book.BookID,
                         Book = book,
-                        Cost = (lastCost > 0) ? lastCost : 0.01m,
+                        Cost = (lastCost > 0) ? lastCost : book.Cost,
                         Quantity = 5, // Default number of new copies
                         ReorderStatus = ReorderStatus.Ordered
                     });
@@ -184,6 +184,7 @@ namespace fa25Group14FinalProject.Controllers
             int count = 0;
             foreach (var r in reorders.Where(r => r.Quantity > 0))
             {
+                //r.Book = null;
                 // Set final properties and add to context
                 r.Date = DateTime.Now;
                 r.ReorderStatus = ReorderStatus.Ordered;
