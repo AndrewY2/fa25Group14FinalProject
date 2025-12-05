@@ -213,6 +213,10 @@ namespace fa25Group14FinalProject.Controllers
                 FirstName = model.FirstName,
                 LastName = model.LastName,
                 PhoneNumber = model.PhoneNumber,
+                Address = model.Address,
+                City = model.City,
+                State = model.State,
+                ZipCode = model.ZipCode,
                 IsActive = true // hired employees are active by default
             };
 

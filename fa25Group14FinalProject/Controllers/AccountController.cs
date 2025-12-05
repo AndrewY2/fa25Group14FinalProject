@@ -238,6 +238,18 @@ namespace fa25Group14FinalProject.Controllers
 
             if (userToEdit == null) return NotFound();
 
+            var roles = await _userManager.GetRolesAsync(userToEdit);
+
+            // Pass a value to tell the view what page it came from
+            if (roles.Contains("Employee") || roles.Contains("Admin"))
+            {
+                ViewBag.ReturnTo = "Employees";
+            }
+            else
+            {
+                ViewBag.ReturnTo = "Customers";
+            }
+
             return View(userToEdit);
         }
 
@@ -286,8 +298,21 @@ namespace fa25Group14FinalProject.Controllers
             // If an employee/admin edited someone ELSE, send them back to ManageCustomers
             if (isEmployeeOrAdmin && updatedUser.Id != currentUserId)
             {
-                return RedirectToAction("ManageCustomers", "Employees");
+                var rolesOfEdited = await _userManager.GetRolesAsync(userToModify);
+
+                if (rolesOfEdited.Contains("Employee") || rolesOfEdited.Contains("Admin"))
+                {
+                    // Edited user is an employee/admin → go back to ManageEmployees
+                    return RedirectToAction("ManageEmployees", "Employees");
+                }
+                else
+                {
+                    // Edited user is a customer → go back to ManageCustomers
+                    return RedirectToAction("ManageCustomers", "Employees");
+                }
             }
+
+            // Otherwise (user editing their own account) → go back to Account/Index
             return RedirectToAction(nameof(Index));
         }
 
