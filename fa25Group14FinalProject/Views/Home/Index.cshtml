@@ -44,7 +44,6 @@
         @if (User.IsInRole("Admin"))
         {
             @* Suppliers and Manage Users buttons are only available to Admins *@
-            <a asp-controller="Suppliers" asp-action="Index" class="btn btn-danger">View Suppliers</a>
             <a asp-controller="RoleAdmin" asp-action="Index" class="btn btn-warning">Manage Users</a>
         }
     }

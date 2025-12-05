@@ -83,13 +83,13 @@
                         @if (User.IsInRole("Admin"))
                         {
                             <li class="nav-item">
-                                <a asp-controller="Suppliers" asp-action="Index" class="nav-link">Suppliers</a>
-                            </li>
-                            <li class="nav-item">
                                 <a asp-controller="RoleAdmin" asp-action="Index" class="nav-link">Manage Users</a>
                             </li>
                             <li class="nav-item">
                                 <a asp-controller="Promotions" asp-action="Index" class="nav-link">Promotions</a>
+                            </li>
+                            <li class="nav-item">
+                                <a asp-controller="Reorders" asp-action="Index" class="nav-link">Book Procurement</a>
                             </li>
                         }
                     }
