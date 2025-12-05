@@ -113,7 +113,11 @@ namespace fa25Group14FinalProject.Controllers
                 {
                     ModelState.AddModelError("DiscountPercent", "Percentage discount must be set for this coupon type.");
                 }
-                coupon.FreeThreshold = null; // Clear unused property
+                else if (coupon.DiscountPercent > 100)
+                {
+                    ModelState.AddModelError("DiscountPercent", "Percentage discount cannot exceed 100%.");
+                }
+                    coupon.FreeThreshold = null; // Clear unused property
             }
             else if (coupon.CouponType == CouponType.FreeShipping)
             {
