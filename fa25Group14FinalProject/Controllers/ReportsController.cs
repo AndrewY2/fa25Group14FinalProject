@@ -54,6 +54,7 @@ namespace fa25Group14FinalProject.Controllers
                         BookTitle = od.Book.Title,
                         Quantity = od.Quantity,
                         OrderNumber = od.OrderID, // Use OrderID as Order Number
+                        OrderDate = od.Order.OrderDate,
                         CustomerName = od.Order.Customer.FirstName + " " + od.Order.Customer.LastName,
                         SellingPrice = od.Price,
                         WeightedAverageCost = od.Cost,
@@ -62,19 +63,32 @@ namespace fa25Group14FinalProject.Controllers
                     ViewBag.RecordCount = reportA.Count;
                     return View("ReportA", reportA);
 
-                case "B": // All Orders (Grouped by Order)
-                    var reportB = await query.GroupBy(od => od.Order)
-                        .Select(g => new
-                        {
-                            Order = g.Key,
-                            Subtotal = g.Sum(od => od.Quantity * od.Price), // Total Revenue (excluding shipping)
-                            TotalCost = g.Sum(od => od.Quantity * od.Cost),
-                            ProfitMargin = g.Sum(od => od.Quantity * (od.Price - od.Cost)) // Profit for the entire order
-                        })
-                        // You will need to project this into a final list/view model for sorting/display
-                        .ToListAsync();
-                    ViewBag.RecordCount = reportB.Count;
-                    return View("ReportB", reportB);
+                case "B": // All Orders - grouped by order
+                    {
+                        var reportB = await query
+                            .GroupBy(od => new
+                            {
+                                od.Order.OrderID,
+                                od.Order.OrderDate,
+                                CustomerFirst = od.Order.Customer.FirstName,
+                                CustomerLast = od.Order.Customer.LastName
+                            })
+                            .Select(g => new
+                            {
+                                OrderID = g.Key.OrderID,
+                                OrderDate = g.Key.OrderDate,
+                                CustomerName = g.Key.CustomerFirst + " " + g.Key.CustomerLast,
+
+                                Subtotal = g.Sum(od => od.Quantity * od.Price),               // total revenue (no shipping)
+                                TotalCost = g.Sum(od => od.Quantity * od.Cost),
+                                ProfitMargin = g.Sum(od => od.Quantity * (od.Price - od.Cost))    // total profit for the order
+                            })
+                            .ToListAsync();
+
+                        ViewBag.RecordCount = reportB.Count;
+                        return View("ReportB", reportB);
+                    }
+
 
                 case "C": // All Customers (Grouped by Customer)
                     var reportC = await query.GroupBy(od => od.Order.Customer)
