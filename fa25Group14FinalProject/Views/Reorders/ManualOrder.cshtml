@@ -1,5 +1,61 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
+﻿@model fa25Group14FinalProject.ViewModels.SearchViewModel
+@using fa25Group14FinalProject.Models
 @{
+    ViewData["Title"] = "Manual Reorder";
+    List<Book> books = ViewBag.InitialBookList as List<Book> ?? new List<Book>();
 }
+@*ADD PROFIT???*@
+<h1>Manual Reorder</h1>
+
+<h3>Filter and Sort</h3>
+
+<form asp-action="ManualOrder" method="post" class="mb-3">
+    <div class="form-group">
+        <label asp-for="Title">Title</label>
+        <input asp-for="Title" class="form-control" />
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Authors">Authors</label>
+        <input asp-for="Authors" class="form-control" />
+    </div>
+
+    <div class="form-group">
+        <label asp-for="BookNumber">Unique Number</label>
+        <input asp-for="BookNumber" class="form-control" />
+    </div>
+
+    <div class="form-group">
+        <label asp-for="GenreID">Genre</label>
+        <select asp-for="GenreID" asp-items="ViewBag.GenreSelectList" class="form-control">
+            <option value="">-- All Genres --</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="SortOption">Sort By</label>
+        <select asp-for="SortOption" class="form-control">
+            <option value="Title">Title</option>
+            <option value="Author">Author</option>
+            <option value="MostPopular">MostPopular</option>
+            <option value="Newest">Newest</option>
+            <option value="Oldest">Oldest</option>
+            <option value="HighestRated">HighestRated</option>
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Search</button>
+    <a asp-action="DisplaySearchResults" class="btn btn-secondary">Show All</a>
+</form>
+
+<hr />
+<h3>Search Results</h3>
+
+<div class="alert alert-info">
+    Showing <strong>@ViewBag.SelectedBooks</strong> out of <strong>@ViewBag.AllBooks</strong> books
+</div>
+
+@{
+    ViewBag.SearchMode = "procurement";
+}
+@await Html.PartialAsync("_BookSearchResults", books)

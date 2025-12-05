@@ -34,11 +34,94 @@ namespace fa25Group14FinalProject.Controllers
         // --- MANUAL REORDERING ---
 
         // GET: Reorders/ManualOrder (Search books to order)
-        public IActionResult ManualOrder()
+        [HttpGet]
+        public async Task<IActionResult> ManualOrder()
         {
-            // Initial view displays a search form, similar to Books/Index but focused on procurement.
-            return View();
+            var books = await _context.Books
+                                      .Include(b => b.Genre)
+                                      .Include(b => b.Reviews)
+                                      .OrderBy(b => b.Title)
+                                      .ToListAsync();
+
+            var svm = new fa25Group14FinalProject.ViewModels.SearchViewModel();
+
+            ViewBag.InitialBookList = books;
+            ViewBag.AllBooks = books.Count;
+            ViewBag.SelectedBooks = books.Count;
+            ViewBag.GenreSelectList = new SelectList(_context.Genres, "GenreID", "GenreName");
+
+            return View(svm);
         }
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ManualOrder(fa25Group14FinalProject.ViewModels.SearchViewModel svm)
+        {
+            // Start with Books + Reviews so we can compute ratings if needed
+            var query = _context.Books
+                                .Include(b => b.Reviews)
+                                .AsQueryable();
+
+            if (!String.IsNullOrEmpty(svm.Title))
+            {
+                query = query.Where(b => b.Title.Contains(svm.Title));
+            }
+
+            if (!String.IsNullOrEmpty(svm.Authors))
+            {
+                query = query.Where(b => b.Authors.Contains(svm.Authors));
+            }
+
+            if (svm.BookNumber.HasValue)
+            {
+                query = query.Where(b => b.BookNumber == svm.BookNumber);
+            }
+
+            if (svm.GenreID.HasValue)
+            {
+                query = query.Where(b => b.GenreID == svm.GenreID);
+            }
+
+            // NOTE: For procurement, you probably do NOT want to filter out out-of-stock books,
+            // because you are trying to reorder them. So we ignore svm.InStockOnly here.
+
+            switch (svm.SortOption)
+            {
+                case fa25Group14FinalProject.ViewModels.SearchViewModel.SortType.Title:
+                    query = query.OrderBy(b => b.Title);
+                    break;
+                case fa25Group14FinalProject.ViewModels.SearchViewModel.SortType.Author:
+                    query = query.OrderBy(b => b.Authors);
+                    break;
+                case fa25Group14FinalProject.ViewModels.SearchViewModel.SortType.MostPopular:
+                    query = query.OrderByDescending(b => b.TimesPurchased);
+                    break;
+                case fa25Group14FinalProject.ViewModels.SearchViewModel.SortType.Newest:
+                    query = query.OrderByDescending(b => b.PublishDate);
+                    break;
+                case fa25Group14FinalProject.ViewModels.SearchViewModel.SortType.Oldest:
+                    query = query.OrderBy(b => b.PublishDate);
+                    break;
+                case fa25Group14FinalProject.ViewModels.SearchViewModel.SortType.HighestRated:
+                    query = query.OrderByDescending(b => b.Rating);
+                    break;
+            }
+
+            var selectedBooks = query
+                .Include(b => b.Genre)
+                .ToList();
+
+            ViewBag.InitialBookList = selectedBooks;
+            ViewBag.AllBooks = _context.Books.Count();
+            ViewBag.SelectedBooks = selectedBooks.Count();
+            ViewBag.SearchMode = "procurement";
+            ViewBag.GenreSelectList = new SelectList(_context.Genres, "GenreID", "GenreName");
+
+            return View(svm); // returns Views/Reorders/ManualOrder.cshtml
+        }
+
+
 
         // GET: Reorders/OrderBook/5 (Displays book details and form to place a manual reorder)
         public async Task<IActionResult> OrderBook(int? id)
@@ -69,7 +152,7 @@ namespace fa25Group14FinalProject.Controllers
             {
                 BookID = book.BookID,
                 Book = book,
-                Cost = (lastCost > 0) ? lastCost : 0.01m, // Book costs must be greater than zero.
+                Cost = (lastCost > 0) ? lastCost : book.Cost, // Book costs must be greater than zero.
                 Quantity = 5, // Default quantity can be anything, here we use 5.
                 ReorderStatus = ReorderStatus.Ordered
             };

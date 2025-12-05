@@ -1,0 +1,56 @@
+﻿@model fa25Group14FinalProject.Models.Reorder
+
+@{
+    ViewData["Title"] = "Place Manual Order";
+}
+
+<h1>Place Manual Order</h1>
+<hr />
+
+@if (Model.Book == null)
+{
+    <div class="alert alert-danger">Book details could not be loaded.</div>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-6">
+            <h4>@Model.Book.Title</h4>
+            <p>
+                <strong>Authors:</strong> @Model.Book.Authors<br />
+                <strong>Current Inventory:</strong> @Model.Book.InventoryQuantity<br />
+                <strong>Reorder Point:</strong> @Model.Book.ReorderPoint<br />
+                <strong>Selling Price:</strong> @Model.Book.Price.ToString("C")<br />
+            </p>
+        </div>
+    </div>
+
+    <hr />
+
+    <div class="row">
+        <div class="col-md-4">
+            <form asp-action="PlaceManualOrder" method="post">
+                @Html.AntiForgeryToken()
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                <input type="hidden" asp-for="BookID" />
+
+                <div class="form-group mb-2">
+                    <label asp-for="Cost" class="control-label"></label>
+                    <input asp-for="Cost" class="form-control" />
+                    <span asp-validation-for="Cost" class="text-danger"></span>
+                </div>
+
+                <div class="form-group mb-2">
+                    <label asp-for="Quantity" class="control-label"></label>
+                    <input asp-for="Quantity" class="form-control" />
+                    <span asp-validation-for="Quantity" class="text-danger"></span>
+                </div>
+
+                <button type="submit" class="btn btn-success">Place Manual Order</button>
+                <a asp-action="ManualOrder" class="btn btn-secondary">Back to Search</a>
+            </form>
+        </div>
+    </div>
+}
+

@@ -84,97 +84,19 @@ namespace fa25Group14FinalProject.Controllers
         [HttpPost]
         public IActionResult DisplaySearchResults(SearchViewModel svm)
         {
-            // Start with Books + Reviews so we can compute ratings later
-            var query = _context.Books
-                                .Include(b => b.Reviews)
-                                .AsQueryable();
+            var query = BuildBookSearchQuery(svm);
+            List<Book> SelectedBooks = query.ToList();
 
-            // Search by Title
-            if (!String.IsNullOrEmpty(svm.Title))
-            {
-                query = query.Where(b => b.Title.Contains(svm.Title));
-            }
-
-            // Search by Author
-            if (!String.IsNullOrEmpty(svm.Authors))
-            {
-                query = query.Where(b => b.Authors.Contains(svm.Authors));
-            }
-
-            // Combination: Title + Author
-            if (!String.IsNullOrEmpty(svm.Title) && !String.IsNullOrEmpty(svm.Authors))
-            {
-                query = query.Where(b => b.Title.Contains(svm.Title) &&
-                                         b.Authors.Contains(svm.Authors));
-            }
-
-            // Search by Unique Number
-            if (svm.BookNumber.HasValue)
-            {
-                query = query.Where(b => b.BookNumber == svm.BookNumber);
-            }
-
-            // Genre (ONE and ONLY ONE genre)
-            if (svm.GenreID.HasValue)
-            {
-                query = query.Where(b => b.GenreID == svm.GenreID);
-            }
-
-            // Filter: In Stock ONLY
-            if (svm.InStockOnly == true)
-            {
-                query = query.Where(b => b.InventoryQuantity > 0);
-            }
-
-            // Sorting options
-            switch (svm.SortOption)
-            {
-                case SearchViewModel.SortType.Title:
-                    query = query.OrderBy(b => b.Title);
-                    break;
-
-                case SearchViewModel.SortType.Author:
-                    query = query.OrderBy(b => b.Authors);
-                    break;
-
-                case SearchViewModel.SortType.MostPopular:
-                    query = query.OrderByDescending(b => b.TimesPurchased);
-                    break;
-
-                case SearchViewModel.SortType.Newest:
-                    query = query.OrderByDescending(b => b.PublishDate);
-                    break;
-
-                case SearchViewModel.SortType.Oldest:
-                    query = query.OrderBy(b => b.PublishDate);
-                    break;
-
-                case SearchViewModel.SortType.HighestRated:
-                    // Keep using the scalar Rating property for sort;
-                    // the view will display the average of APPROVED reviews.
-                    query = query.OrderByDescending(b => b.Rating);
-                    break;
-            }
-
-            // Execute query and include Genre
-            List<Book> SelectedBooks = query
-                .Include(b => b.Genre)
-                .ToList();
-
-            // Re-set the ViewBag for Genre list (needed because the view requires it)
             SelectList genreSelectList = new SelectList(_context.Genres, "GenreID", "GenreName");
             ViewBag.GenreSelectList = genreSelectList;
 
-            // Set the list of books for the Search view
             ViewBag.InitialBookList = SelectedBooks;
-
-            // Record count: "Showing X of Y Books"
             ViewBag.AllBooks = _context.Books.Count();
             ViewBag.SelectedBooks = SelectedBooks.Count();
 
-            // Return search results to Search view
             return View("Search", svm);
         }
+
 
         // GET: Books/Details/5 - Accessible by everyone
         public async Task<IActionResult> Details(int? id)
@@ -333,6 +255,64 @@ namespace fa25Group14FinalProject.Controllers
         }
 
         // --- HELPER METHODS ---
+
+        // inside BooksController
+        private IQueryable<Book> BuildBookSearchQuery(SearchViewModel svm)
+        {
+            var query = _context.Books
+                                .Include(b => b.Reviews)
+                                .AsQueryable();
+
+            if (!String.IsNullOrEmpty(svm.Title))
+            {
+                query = query.Where(b => b.Title.Contains(svm.Title));
+            }
+
+            if (!String.IsNullOrEmpty(svm.Authors))
+            {
+                query = query.Where(b => b.Authors.Contains(svm.Authors));
+            }
+
+            if (svm.BookNumber.HasValue)
+            {
+                query = query.Where(b => b.BookNumber == svm.BookNumber);
+            }
+
+            if (svm.GenreID.HasValue)
+            {
+                query = query.Where(b => b.GenreID == svm.GenreID);
+            }
+
+            if (svm.InStockOnly == true)
+            {
+                query = query.Where(b => b.InventoryQuantity > 0);
+            }
+
+            switch (svm.SortOption)
+            {
+                case SearchViewModel.SortType.Title:
+                    query = query.OrderBy(b => b.Title);
+                    break;
+                case SearchViewModel.SortType.Author:
+                    query = query.OrderBy(b => b.Authors);
+                    break;
+                case SearchViewModel.SortType.MostPopular:
+                    query = query.OrderByDescending(b => b.TimesPurchased);
+                    break;
+                case SearchViewModel.SortType.Newest:
+                    query = query.OrderByDescending(b => b.PublishDate);
+                    break;
+                case SearchViewModel.SortType.Oldest:
+                    query = query.OrderBy(b => b.PublishDate);
+                    break;
+                case SearchViewModel.SortType.HighestRated:
+                    query = query.OrderByDescending(b => b.Rating);
+                    break;
+            }
+
+            return query.Include(b => b.Genre);
+        }
+
 
         private bool BookExists(int id)
         {
