@@ -38,6 +38,18 @@
                             <a asp-controller="OrderDetails" asp-action="Index" class="nav-link">Cart</a>
                         </li>
 
+                        @if (User.IsInRole("Admin") || User.IsInRole("Employee"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark"
+                                   asp-controller="Employees"
+                                   asp-action="ManageCustomers">
+                                    Manage Customers
+                                </a>
+                            </li>
+                        }
+
+
                         @* Customer-only account page *@
                         @if (!User.IsInRole("Admin"))
                         {
