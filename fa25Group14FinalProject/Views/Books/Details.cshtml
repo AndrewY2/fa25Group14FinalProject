@@ -4,19 +4,30 @@
 
 @{
     ViewData["Title"] = "Book Details";
-    // Check if the current user is a Customer
     bool isCustomer = User.IsInRole("Customer");
 }
 
 <h1>@Model.Title</h1>
 
+@* TempData alerts (for review errors / success) *@
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">
+        @TempData["SuccessMessage"]
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">
+        @TempData["ErrorMessage"]
+    </div>
+}
+
 <div>
     <h4>Book Information</h4>
     <hr />
 
-    @* --- CORE BOOK DETAILS --- *@
     <dl class="row">
-
         <dt class="col-sm-3">
             @Html.DisplayNameFor(model => model.Authors)
         </dt>
@@ -66,7 +77,7 @@
             @(Model.InventoryQuantity > 0 ? Model.InventoryQuantity.ToString() : "Out of Stock")
         </dd>
 
-        @* --- ADMIN ONLY: Procurement/Profit Info (Cost/ReorderPoint) --- *@
+        @* Admin-only cost / reorder info *@
         @if (User.IsInRole("Admin"))
         {
             <dt class="col-sm-3 text-success">
@@ -75,6 +86,7 @@
             <dd class="col-sm-9 text-success">
                 @Html.DisplayFor(model => model.Cost)
             </dd>
+
             <dt class="col-sm-3 text-info">
                 @Html.DisplayNameFor(model => model.ReorderPoint)
             </dt>
@@ -87,29 +99,31 @@
 
 <hr />
 
-@* --- REVIEWS & RATING --- *@
+@* ---------- REVIEWS & RATING ---------- *@
 <div>
     <h4>Reviews & Rating</h4>
+
     <dl class="row">
         <dt class="col-sm-3">
             Average Rating:
         </dt>
         <dd class="col-sm-9">
-            @* ViewBag.AverageRating is set in the BooksController.Details action *@
             <strong>@ViewBag.AverageRating</strong> / 5.0 (@Model.Reviews.Count() approved reviews)
         </dd>
     </dl>
 
-    @* --- CUSTOMER ACTION: Write Review Link --- *@
+    @* Customer "Write a Review" button (controller will enforce rules) *@
     @if (isCustomer)
     {
-        // Option to review the book is only for logged-in customers (and validated in ReviewsController)
-        <a asp-controller="Reviews" asp-action="Create" asp-route-bookID="@Model.BookID" class="btn btn-sm btn-outline-info mb-3">
+        <a asp-controller="Reviews"
+           asp-action="Create"
+           asp-route-bookID="@Model.BookID"
+           class="btn btn-sm btn-outline-info mb-3">
             Write a Review
         </a>
     }
 
-    @* List Approved Reviews *@
+    @* Approved reviews list *@
     @if (Model.Reviews.Any())
     {
         <table class="table table-sm">
@@ -123,7 +137,9 @@
                 @foreach (var review in Model.Reviews)
                 {
                     <tr>
-                        <td><span class="badge badge-secondary">@review.Rating / 5</span></td>
+                        <td>
+                            <span class="badge badge-secondary">@review.Rating / 5</span>
+                        </td>
                         <td>@review.ReviewText</td>
                     </tr>
                 }
@@ -138,39 +154,48 @@
 
 <hr />
 
-@* --- CUSTOMER ACTION: Add to Cart Form --- *@
+@* ---------- CUSTOMER: ADD TO CART ---------- *@
 @if (isCustomer)
 {
-    @* Check if book is discontinued *@
     if (Model.BookStatus == true)
     {
-        <div class="alert alert-danger">This book has been **discontinued** and cannot be purchased.</div>
+        <div class="alert alert-danger">
+            This book has been discontinued and cannot be purchased.
+        </div>
     }
-    @* Check if book is in stock *@
     else if (Model.InventoryQuantity > 0)
     {
-        @* NOTE: You should add logic here to check if the item is already in the customer's cart and display a message *@
-
-        <form asp-controller="OrderDetails" asp-action="AddItem" method="post" class="form-inline">
+        <form asp-controller="OrderDetails"
+              asp-action="AddItem"
+              method="post"
+              class="form-inline">
             <input type="hidden" name="BookID" value="@Model.BookID" />
             <div class="form-group mr-2">
                 <label for="Quantity" class="mr-2">Quantity:</label>
-                <input type="number" name="Quantity" value="1" min="1" max="@Model.InventoryQuantity" class="form-control" style="width: 80px;" required />
+                <input type="number"
+                       name="Quantity"
+                       value="1"
+                       min="1"
+                       max="@Model.InventoryQuantity"
+                       class="form-control"
+                       style="width: 80px;"
+                       required />
             </div>
             <button type="submit" class="btn btn-success">
                 Add to Cart
             </button>
         </form>
     }
-    else // Out of stock
+    else
     {
-        <div class="alert alert-warning">**Out of Stock** – Cannot be added to cart.</div>
+        <div class="alert alert-warning">
+            Out of Stock – Cannot be added to cart.
+        </div>
     }
 }
 
 <hr />
 
-@* --- ADMIN ACTION: Edit Link --- *@
 <div>
     @if (User.IsInRole("Admin"))
     {

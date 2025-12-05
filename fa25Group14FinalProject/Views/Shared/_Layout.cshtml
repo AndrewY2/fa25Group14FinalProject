@@ -58,6 +58,15 @@
                             </li>
                         }
 
+                        @* Employee/Admin review approval queue *@
+                        @if (User.IsInRole("Admin") || User.IsInRole("Employee"))
+                        {
+                            <li class="nav-item">
+                                <a asp-controller="Reviews" asp-action="Pending" class="nav-link">Review Queue</a>
+                            </li>
+                        }
+
+
                         @* Admin-only tools *@
                         @if (User.IsInRole("Admin"))
                         {

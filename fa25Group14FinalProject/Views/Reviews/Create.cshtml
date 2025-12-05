@@ -1,0 +1,47 @@
+﻿@model fa25Group14FinalProject.Models.Review
+
+@{
+    ViewData["Title"] = "Write a Review";
+}
+
+<h2>Write a Review</h2>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">
+        @TempData["ErrorMessage"]
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <h3>@Model.Book.Title</h3>
+        <p class="text-muted">by @Model.Book.Authors</p>
+
+        <form asp-action="Create" method="post">
+            @* VERY IMPORTANT: send BookID back to POST *@
+            <input type="hidden" asp-for="BookID" />
+
+            <div class="form-group">
+                <label asp-for="Rating"></label>
+                <input asp-for="Rating" class="form-control" />
+                <span asp-validation-for="Rating" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="ReviewText"></label>
+                <textarea asp-for="ReviewText" class="form-control"></textarea>
+                <span asp-validation-for="ReviewText" class="text-danger"></span>
+            </div>
+
+            <br />
+            <button type="submit" class="btn btn-primary">Submit Review</button>
+            <a asp-controller="Books"
+               asp-action="Details"
+               asp-route-id="@Model.BookID"
+               class="btn btn-secondary">
+                Cancel
+            </a>
+        </form>
+    </div>
+</div>

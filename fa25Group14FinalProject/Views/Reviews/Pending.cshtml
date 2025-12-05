@@ -1,0 +1,57 @@
+﻿@model IEnumerable<fa25Group14FinalProject.Models.Review>
+
+@{
+    ViewBag.Title = "Review Queue";
+}
+
+<h2>Review Queue</h2>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">
+        @TempData["SuccessMessage"]
+    </div>
+}
+
+@if (!Model.Any())
+{
+    <p>There are currently no reviews awaiting approval.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Book</th>
+                <th>Reviewer</th>
+                <th>Rating</th>
+                <th>Review Text</th>
+                <th>Submitted On</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in Model)
+            {
+                <tr>
+                    <td>@r.Book?.Title</td>
+                    <td>@(r.Reviewer != null ? $"{r.Reviewer.FirstName} {r.Reviewer.LastName}" : "Unknown")</td>
+                    <td>@r.Rating</td>
+                    <td>@r.ReviewText</td>
+                    <td>@r.ReviewDate.ToShortDateString()</td>
+                    <td>
+                        <form asp-action="Approve" asp-route-id="@r.ReviewID" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                        </form>
+
+                        <form asp-action="Reject" asp-route-id="@r.ReviewID" method="post" class="d-inline ml-1">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-danger">Reject</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
