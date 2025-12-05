@@ -12,6 +12,7 @@ namespace fa25Group14FinalProject.ViewModels
 
         public bool InStockOnly { get; set; }
 
+        [Display(Name = "Sort By")]
         public SortType SortOption { get; set; }
 
         public enum SortType
