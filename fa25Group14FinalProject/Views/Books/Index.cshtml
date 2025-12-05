@@ -1,4 +1,5 @@
 @model IEnumerable<fa25Group14FinalProject.Models.Book>
+@using fa25Group14FinalProject.Models
 
 @{
     ViewData["Title"] = "Book Search Results";
@@ -6,7 +7,6 @@
 
 <h1>Bevo's Books Catalog</h1>
 
-@* 1. CONDITIONAL LOGIC: Only show "Create New" if the user is in the "Admin" role *@
 @if (User.IsInRole("Admin"))
 {
     <p>
@@ -14,7 +14,6 @@
     </p>
 }
 
-@* NOTE: You should add the search form and filtering options here *@
 <div class="alert alert-info">
     Showing @ViewBag.SelectedBooks out of @ViewBag.AllBooks books
 </div>
@@ -22,23 +21,11 @@
 <table class="table">
     <thead>
         <tr>
-            <th>
-                Title:
-            </th>
-            <th>
-                Author:
-            </th>
-            <th>
-                Unique Number:
-            </th>
-            <th>
-                In Stock:
-            </th>
-            <th>
-                Rating:
-            </th>
-
-            @* 2. CONDITIONAL LOGIC: Only show this empty header if the user is in the "Admin" role *@
+            <th>Title:</th>
+            <th>Author:</th>
+            <th>Unique Number:</th>
+            <th>In Stock:</th>
+            <th>Rating:</th>
             @if (User.IsInRole("Admin"))
             {
                 <th>Admin Actions</th>
@@ -52,25 +39,20 @@
     <tbody>
         @foreach (var item in Model)
         {
-            <tr>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Title)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Authors)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.BookNumber)
-                </td>
-                <td>
-                    @(item.InventoryQuantity > 0 ? "Yes" : "No")
-                </td>
-                <td>
-                    @* This should be replaced with the actual average rating logic in the final view *@
-                    N/A
-                </td>
+            var approvedReviews = item.Reviews?
+                .Where(r => r.IsApproved == true)
+                .ToList() ?? new List<Review>();
 
-                @* 3. CONDITIONAL LOGIC: Show Edit/Delete only if Admin, otherwise just show Details *@
+            double rating = approvedReviews.Any()
+                ? approvedReviews.Average(r => r.Rating)
+                : 0.0;
+
+            <tr>
+                <td>@item.Title</td>
+                <td>@item.Authors</td>
+                <td>@item.BookNumber</td>
+                <td>@(item.InventoryQuantity > 0 ? "Yes" : "No")</td>
+                <td>@rating.ToString("0.00")</td>
                 <td>
                     @if (User.IsInRole("Admin"))
                     {

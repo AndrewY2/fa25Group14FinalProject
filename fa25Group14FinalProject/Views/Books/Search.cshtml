@@ -1,24 +1,23 @@
-﻿@using fa25Group14FinalProject.Models
-@model fa25Group14FinalProject.ViewModels.SearchViewModel
+﻿@model fa25Group14FinalProject.ViewModels.SearchViewModel
+@using fa25Group14FinalProject.Models
 
 @{
     ViewData["Title"] = "Book Search";
+    List<Book> books = ViewBag.InitialBookList as List<Book> ?? new List<Book>();
 }
 
 <h1>Book Search</h1>
-<hr />
 
-<form asp-action="DisplaySearchResults" method="post">
+<h3>Filter and Sort</h3>
 
-    <h3>Filter and Sort</h3>
-
+<form asp-action="DisplaySearchResults" method="post" class="mb-3">
     <div class="form-group">
-        <label asp-for="Title"></label>
+        <label asp-for="Title">Title</label>
         <input asp-for="Title" class="form-control" />
     </div>
 
     <div class="form-group">
-        <label asp-for="Authors"></label>
+        <label asp-for="Authors">Authors</label>
         <input asp-for="Authors" class="form-control" />
     </div>
 
@@ -28,116 +27,70 @@
     </div>
 
     <div class="form-group">
-        <label>Genre</label>
-        <select asp-for="GenreID" asp-items="ViewBag.GenreSelectList" class="form-select">
+        <label asp-for="GenreID">Genre</label>
+        <select asp-for="GenreID" asp-items="ViewBag.GenreSelectList" class="form-control">
             <option value="">-- All Genres --</option>
         </select>
     </div>
 
     <div class="form-group">
-        <label asp-for="SortOption"></label>
-        <select asp-for="SortOption" class="form-select">
+        <label asp-for="SortOption">Sort By</label>
+        <select asp-for="SortOption" class="form-control">
             <option value="Title">Title</option>
             <option value="Author">Author</option>
-            <option value="MostPopular">Most Popular</option>
+            <option value="MostPopular">MostPopular</option>
             <option value="Newest">Newest</option>
             <option value="Oldest">Oldest</option>
-            <option value="HighestRated">Highest Rated</option>
+            <option value="HighestRated">HighestRated</option>
         </select>
     </div>
 
-    <div class="form-group">
-        <input type="checkbox" asp-for="InStockOnly" />
-        <label asp-for="InStockOnly">In Stock Only</label>
+    <div class="form-check mb-2">
+        <input asp-for="InStockOnly" class="form-check-input" />
+        <label asp-for="InStockOnly" class="form-check-label">In Stock Only</label>
     </div>
 
     <button type="submit" class="btn btn-primary">Search</button>
-    <a asp-action="Search" class="btn btn-secondary">Show All</a>
-
+    <a asp-action="DisplaySearchResults" class="btn btn-secondary">Show All</a>
 </form>
 
----
-
-<h2>Search Results</h2>
-
-@{
-    // Retrieve the book list from the ViewBag
-    List<Book>? books = ViewBag.InitialBookList as List<Book> ?? new List<Book>();
-}
+<hr />
+<h3>Search Results</h3>
 
 <div class="alert alert-info">
-    Showing **@ViewBag.SelectedBooks** out of **@ViewBag.AllBooks** books
+    Showing <strong>@ViewBag.SelectedBooks</strong> out of <strong>@ViewBag.AllBooks</strong> books
 </div>
 
 <table class="table">
     <thead>
         <tr>
-            <th>
-                Title:
-            </th>
-            <th>
-                Author:
-            </th>
-            <th>
-                Unique Number:
-            </th>
-            <th>
-                In Stock:
-            </th>
-            <th>
-                Rating:
-            </th>
-
-            @* Conditional Admin Header (Copied from Index.cshtml) *@
-            @if (User.IsInRole("Admin"))
-            {
-                <th>Admin Actions</th>
-            }
-            else
-            {
-                <th></th>
-            }
+            <th>Title:</th>
+            <th>Author:</th>
+            <th>Unique Number:</th>
+            <th>In Stock:</th>
+            <th>Rating:</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
-        @foreach (var item in books)
+        @foreach (Book item in books)
         {
-            <tr>
-                <td>
-                    @item.Title
-                </td>
-                <td>
-                    @item.Authors
-                </td>
-                <td>
-                    @item.BookNumber
-                </td>
-                <td>
-                    @(item.InventoryQuantity > 0 ? "Yes" : "No")
-                </td>
-                <td>
-                    @* Assuming you can access the actual rating, or use the N/A placeholder if not calculated on the Book model *@
-                    @if (item.Rating.HasValue)
-                    {
-                        @item.Rating.Value.ToString("F2")
-                    }
-                    else
-                    {
-                        @:N/A
-                    }
-                </td>
+            var approvedReviews = item.Reviews?
+                .Where(r => r.IsApproved == true)
+                .ToList() ?? new List<Review>();
 
-                @* Conditional Action Links (Copied from Index.cshtml) *@
+            double rating = approvedReviews.Any()
+                ? approvedReviews.Average(r => r.Rating)
+                : 0.0;
+
+            <tr>
+                <td>@item.Title</td>
+                <td>@item.Authors</td>
+                <td>@item.BookNumber</td>
+                <td>@(item.InventoryQuantity > 0 ? "Yes" : "No")</td>
+                <td>@rating.ToString("0.00")</td>
                 <td>
-                    @if (User.IsInRole("Admin"))
-                    {
-                        <a asp-action="Edit" asp-route-id="@item.BookID">Edit</a> <span>|</span>
-                        <a asp-action="Details" asp-route-id="@item.BookID">Details</a>
-                    }
-                    else
-                    {
-                        <a asp-action="Details" asp-route-id="@item.BookID">View Details</a>
-                    }
+                    <a asp-action="Details" asp-route-id="@item.BookID">View Details</a>
                 </td>
             </tr>
         }

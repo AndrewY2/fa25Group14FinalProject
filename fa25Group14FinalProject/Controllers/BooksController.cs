@@ -26,14 +26,19 @@ namespace fa25Group14FinalProject.Controllers
         // GET: Books - Accessible by everyone
         public async Task<IActionResult> Index()
         {
-            // Note: This action should be expanded with robust search, filter, and sort functionality.
+            // Include Genre AND Reviews so we can compute ratings in the view
             var books = await _context.Books
                                       .Include(b => b.Genre)
+                                      .Include(b => b.Reviews)
                                       .ToListAsync();
 
             ViewBag.RecordCount = books.Count;
+            ViewBag.AllBooks = books.Count;
+            ViewBag.SelectedBooks = books.Count;
+
             return View(books);
         }
+
         [HttpGet]
         public IActionResult Search()
         {
@@ -41,17 +46,20 @@ namespace fa25Group14FinalProject.Controllers
 
             SelectList genreSelectList = new SelectList(_context.Genres, "GenreID", "GenreName");
             ViewBag.GenreSelectList = genreSelectList;
+
+            // Load all books + reviews for initial list
             List<Book> allBooks = _context.Books
                         .Include(b => b.Genre)
                         .Include(b => b.Reviews)
                         .ToList();
+
             ViewBag.InitialBookList = allBooks;
-
-
             ViewBag.AllBooks = allBooks.Count;
             ViewBag.SelectedBooks = allBooks.Count;
+
             return View(svm);
         }
+
         [HttpGet]
         public IActionResult DisplaySearchResults()
         {
@@ -64,16 +72,22 @@ namespace fa25Group14FinalProject.Controllers
             ViewBag.AllBooks = books.Count;
             ViewBag.SelectedBooks = books.Count;
 
-            return View("Index", books);   // <-- return to Index view!
-        }
+            // Re-use the Search view model with empty filters
+            SearchViewModel svm = new SearchViewModel();
+            SelectList genreSelectList = new SelectList(_context.Genres, "GenreID", "GenreName");
+            ViewBag.GenreSelectList = genreSelectList;
+            ViewBag.InitialBookList = books;
 
+            return View("Search", svm);
+        }
 
         [HttpPost]
         public IActionResult DisplaySearchResults(SearchViewModel svm)
         {
-            // Basic query
-            var query = from b in _context.Books
-                        select b;
+            // Start with Books + Reviews so we can compute ratings later
+            var query = _context.Books
+                                .Include(b => b.Reviews)
+                                .AsQueryable();
 
             // Search by Title
             if (!String.IsNullOrEmpty(svm.Title))
@@ -136,11 +150,13 @@ namespace fa25Group14FinalProject.Controllers
                     break;
 
                 case SearchViewModel.SortType.HighestRated:
+                    // Keep using the scalar Rating property for sort;
+                    // the view will display the average of APPROVED reviews.
                     query = query.OrderByDescending(b => b.Rating);
                     break;
             }
 
-            // Execute query and include navigation properties
+            // Execute query and include Genre
             List<Book> SelectedBooks = query
                 .Include(b => b.Genre)
                 .ToList();
@@ -149,17 +165,16 @@ namespace fa25Group14FinalProject.Controllers
             SelectList genreSelectList = new SelectList(_context.Genres, "GenreID", "GenreName");
             ViewBag.GenreSelectList = genreSelectList;
 
-            // *** CRITICAL: Set the list of books in the same ViewBag property ***
+            // Set the list of books for the Search view
             ViewBag.InitialBookList = SelectedBooks;
 
             // Record count: "Showing X of Y Books"
             ViewBag.AllBooks = _context.Books.Count();
             ViewBag.SelectedBooks = SelectedBooks.Count();
 
-            // Return search results to Index view
+            // Return search results to Search view
             return View("Search", svm);
         }
-
 
         // GET: Books/Details/5 - Accessible by everyone
         public async Task<IActionResult> Details(int? id)
@@ -172,7 +187,7 @@ namespace fa25Group14FinalProject.Controllers
             // Include Genre and Reviews (only approved ones for public view)
             var book = await _context.Books
                 .Include(b => b.Genre)
-                .Include(b => b.Reviews.Where(r => r.IsApproved == true)) // Only approved reviews for customers/employees
+                .Include(b => b.Reviews.Where(r => r.IsApproved == true))
                 .FirstOrDefaultAsync(m => m.BookID == id);
 
             if (book == null)
@@ -180,24 +195,20 @@ namespace fa25Group14FinalProject.Controllers
                 return NotFound();
             }
 
-            // Calculate the average rating (to 1 decimal place) [cite: 202, 203]
+            // We now compute the average rating in the view itself,
+            // so ViewBag.AverageRating is no longer strictly necessary.
+            // (Leaving this in case something else still uses it.)
             var approvedReviews = book.Reviews.Where(r => r.IsApproved == true).ToList();
 
             if (approvedReviews.Any())
             {
-                // Calculate simple average of approved customer ratings
                 decimal averageRating = (decimal)approvedReviews.Average(r => r.Rating);
-
-                // Round to 1 decimal place (e.g. 4.3, 3.2)
                 ViewBag.AverageRating = Math.Round(averageRating, 1);
             }
             else
             {
                 ViewBag.AverageRating = "N/A";
             }
-
-            // The view logic will check the user role to display Cost/Profit (Admin only) 
-            // and the Add to Cart/Write Review options (Customer only).
 
             return View(book);
         }
@@ -218,8 +229,6 @@ namespace fa25Group14FinalProject.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("BookID,BookNumber,Title,Description,Price,Cost,PublishDate,InventoryQuantity,ReorderPoint,Authors,BookStatus,GenreID")] Book book)
         {
-            // Note: Logic to auto-assign the next sequential Unique Number should be implemented here.
-
             if (ModelState.IsValid)
             {
                 // Ensure Book cost must be greater than zero [cite: 346]
@@ -248,7 +257,6 @@ namespace fa25Group14FinalProject.Controllers
                 return NotFound();
             }
 
-            // Admins can edit all information about any book, except the automatically generated unique number field[cite: 308].
             Book book = await _context.Books
                                      .Include(b => b.Genre)
                                      .FirstOrDefaultAsync(b => b.BookID == id);
@@ -274,7 +282,7 @@ namespace fa25Group14FinalProject.Controllers
                 return NotFound();
             }
 
-            // 1. Fetch the book from the DB to preserve fields not allowed to be edited (like UniqueNumber)
+            // Fetch the book from the DB to preserve fields not allowed to be edited
             Book bookToUpdate = _context.Books.FirstOrDefault(b => b.BookID == book.BookID);
 
             if (bookToUpdate == null)
@@ -282,7 +290,7 @@ namespace fa25Group14FinalProject.Controllers
                 return NotFound();
             }
 
-            // 2. Check for Cost validation
+            // Cost validation
             if (book.Cost <= 0)
             {
                 ModelState.AddModelError("Cost", "Book cost must be greater than zero.");
@@ -290,16 +298,15 @@ namespace fa25Group14FinalProject.Controllers
 
             if (ModelState.IsValid)
             {
-                // 3. Update scalar properties (UniqueNumber is not updated)
                 bookToUpdate.Title = book.Title;
                 bookToUpdate.Description = book.Description;
                 bookToUpdate.Price = book.Price;
-                bookToUpdate.Cost = book.Cost; // Updates Weighted Average Cost
+                bookToUpdate.Cost = book.Cost;
                 bookToUpdate.PublishDate = book.PublishDate;
                 bookToUpdate.InventoryQuantity = book.InventoryQuantity;
                 bookToUpdate.ReorderPoint = book.ReorderPoint;
                 bookToUpdate.Authors = book.Authors;
-                bookToUpdate.BookStatus = book.BookStatus; // Discontinued status
+                bookToUpdate.BookStatus = book.BookStatus;
                 bookToUpdate.GenreID = book.GenreID;
 
                 try
@@ -339,12 +346,8 @@ namespace fa25Group14FinalProject.Controllers
 
         private SelectList GetAllGenres(int selectedID)
         {
-            // Get all genres from the database
             List<Genre> genres = _context.Genres.OrderBy(g => g.GenreName).ToList();
-
-            // Create the SelectList object, using the selectedID to pre-select the genre
             SelectList allGenres = new SelectList(genres, "GenreID", "GenreName", selectedID);
-
             return allGenres;
         }
     }
