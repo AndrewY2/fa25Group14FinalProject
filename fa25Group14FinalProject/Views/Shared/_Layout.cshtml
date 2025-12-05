@@ -34,14 +34,16 @@
                         </li>
 
                         <!-- Shopping cart lives in OrderDetails/Index -->
+                        @if (User.IsInRole("Customer"))
+                        {
                         <li class="nav-item">
                             <a asp-controller="OrderDetails" asp-action="Index" class="nav-link">Cart</a>
                         </li>
-
+                        }
                         @if (User.IsInRole("Admin") || User.IsInRole("Employee"))
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark"
+                                <a class="nav-link"
                                    asp-controller="Employees"
                                    asp-action="ManageCustomers">
                                     Manage Customers
