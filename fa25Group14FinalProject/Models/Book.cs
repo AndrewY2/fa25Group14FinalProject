@@ -97,14 +97,7 @@ namespace fa25Group14FinalProject.Models
             }
         }
 
-        // In-stock check
-        public bool InStock
-        {
-            get
-            {
-                return InventoryQuantity > 0;
-            }
-        }
+
 
 
         // --- Constructor to initialize lists ---

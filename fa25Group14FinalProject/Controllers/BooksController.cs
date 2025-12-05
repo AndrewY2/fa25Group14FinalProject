@@ -109,7 +109,7 @@ namespace fa25Group14FinalProject.Controllers
             // Filter: In Stock ONLY
             if (svm.InStockOnly == true)
             {
-                query = query.Where(b => b.InStock == true);
+                query = query.Where(b => b.InventoryQuantity > 0);
             }
 
             // Sorting options
