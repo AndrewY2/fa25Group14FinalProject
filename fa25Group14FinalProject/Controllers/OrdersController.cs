@@ -360,7 +360,7 @@ namespace fa25Group14FinalProject.Controllers
 
             // --- 5. CONFIRMATION & REDIRECTION ---
 
-            TempData["SuccessMessage"] = $"Order #{cart.OrderID} successfully placed!";
+            TempData["OrderSuccessMessage"] = $"Order #{cart.OrderID} successfully placed!";
             return RedirectToAction("Confirmed", new { id = cart.OrderID });
         }
 
