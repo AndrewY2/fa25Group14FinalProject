@@ -68,6 +68,12 @@ else
                                 @(user.IsActive ? "Disable" : "Enable")
                             </button>
                         </form>
+                        <a asp-controller="Account"
+                           asp-action="Modify"
+                           asp-route-id="@user.Id"
+                           class="btn btn-sm btn-primary">
+                            Edit
+                        </a>
 
                         @* Optional: link to view their account details (Account/Index for that user would be advanced) *@
                     </td>

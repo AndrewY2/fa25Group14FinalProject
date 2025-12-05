@@ -1,0 +1,106 @@
+﻿@model IEnumerable<fa25Group14FinalProject.ViewModels.EmployeeListViewModel>
+
+@{
+    ViewData["Title"] = "Manage Employees";
+}
+
+<h2>Manage Employees</h2>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">
+        @TempData["SuccessMessage"]
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">
+        @TempData["ErrorMessage"]
+    </div>
+}
+
+<p>
+    <a asp-action="HireEmployee" class="btn btn-primary">Hire New Employee</a>
+</p>
+
+@if (!Model.Any())
+{
+    <p>No employees found.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>Role</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var emp in Model)
+            {
+                <tr>
+                    <td>@emp.FirstName @emp.LastName</td>
+                    <td>@emp.Email</td>
+                    <td>@emp.PhoneNumber</td>
+                    <td>
+                        @(emp.IsActive ? "Active" : "Inactive")
+                    </td>
+                    <td>
+                        @(emp.IsAdmin ? "Admin" : "Employee")
+                    </td>
+                    <td>
+                        <!-- Fire / Rehire -->
+                        <form asp-action="ToggleEmployeeActive"
+                              method="post"
+                              style="display:inline;">
+                            <input type="hidden" name="id" value="@emp.Id" />
+                            <button type="submit"
+                                    class="btn btn-sm @(emp.IsActive ? "btn-outline-danger" : "btn-outline-success")">
+                                @(emp.IsActive ? "Fire" : "Rehire")
+                            </button>
+                        </form>
+
+                        <!-- Edit profile (uses Account/Modify we already wired) -->
+                        <a asp-controller="Account"
+                           asp-action="Modify"
+                           asp-route-id="@emp.Id"
+                           class="btn btn-sm btn-primary">
+                            Edit
+                        </a>
+
+                        <!-- Promote / Demote Admin -->
+                        @if (!emp.IsAdmin)
+                        {
+                            <form asp-action="PromoteToAdmin"
+                                  method="post"
+                                  style="display:inline;">
+                                <input type="hidden" name="id" value="@emp.Id" />
+                                <button type="submit" class="btn btn-sm btn-warning">
+                                    Make Admin
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <form asp-action="DemoteFromAdmin"
+                                  method="post"
+                                  style="display:inline;">
+                                <input type="hidden" name="id" value="@emp.Id" />
+                                <button type="submit" class="btn btn-sm btn-secondary">
+                                    Remove Admin
+                                </button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+

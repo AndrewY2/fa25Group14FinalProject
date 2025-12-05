@@ -1,13 +1,14 @@
-﻿using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
-using fa25Group14FinalProject.DAL;
+﻿using fa25Group14FinalProject.DAL;
 using fa25Group14FinalProject.Models;
-using System.Collections.Generic;
+using fa25Group14FinalProject.ViewModels;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace fa25Group14FinalProject.Controllers
 {
@@ -151,5 +152,148 @@ namespace fa25Group14FinalProject.Controllers
             TempData["SuccessMessage"] = $"{user.Email}'s account was successfully {(user.IsActive ? "enabled" : "disabled")}.";
             return RedirectToAction(nameof(ManageCustomers));
         }
+       /* ---- MANAGE EMPLOYEES ----*/
+[Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ManageEmployees()
+    {
+        // Get all users in Employee or Admin roles
+        var employees = await _userManager.GetUsersInRoleAsync("Employee");
+        var admins = await _userManager.GetUsersInRoleAsync("Admin");
+
+        // Union employees + admins, remove duplicates, sort
+        var all = employees
+            .Concat(admins)
+            .GroupBy(u => u.Id)
+            .Select(g => g.First())
+            .OrderBy(u => u.LastName)
+            .ThenBy(u => u.FirstName)
+            .ToList();
+
+        var model = new List<EmployeeListViewModel>();
+
+        foreach (var u in all)
+        {
+            var roles = await _userManager.GetRolesAsync(u);
+
+            model.Add(new EmployeeListViewModel
+            {
+                Id = u.Id,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Email = u.Email,
+                PhoneNumber = u.PhoneNumber,
+                IsActive = u.IsActive,
+                IsAdmin = roles.Contains("Admin")
+            });
+        }
+
+        return View(model);
+    }
+        [Authorize(Roles = "Admin")]
+        public IActionResult HireEmployee()
+        {
+            return View(new HireEmployeeViewModel());
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> HireEmployee(HireEmployeeViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            // Create new AppUser for the employee
+            AppUser newEmployee = new AppUser
+            {
+                UserName = model.Email,
+                Email = model.Email,
+                FirstName = model.FirstName,
+                LastName = model.LastName,
+                PhoneNumber = model.PhoneNumber,
+                IsActive = true // hired employees are active by default
+            };
+
+            IdentityResult result = await _userManager.CreateAsync(newEmployee, model.Password);
+
+            if (!result.Succeeded)
+            {
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError("", error.Description);
+                }
+                return View(model);
+            }
+
+            // Put them in Employee role
+            await _userManager.AddToRoleAsync(newEmployee, "Employee");
+
+            // Optionally make them Admin too
+            if (model.IsAdmin)
+            {
+                await _userManager.AddToRoleAsync(newEmployee, "Admin");
+            }
+
+            TempData["SuccessMessage"] = "Employee hired successfully.";
+            return RedirectToAction(nameof(ManageEmployees));
+        }
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleEmployeeActive(string id)
+        {
+            if (String.IsNullOrEmpty(id)) return NotFound();
+
+            AppUser user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+
+            // Flip IsActive
+            user.IsActive = !user.IsActive;
+
+            await _userManager.UpdateAsync(user);
+
+            TempData["SuccessMessage"] = user.IsActive
+                ? $"Employee {user.Email} rehired (account enabled)."
+                : $"Employee {user.Email} fired (account disabled).";
+
+            return RedirectToAction(nameof(ManageEmployees));
+        }
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> PromoteToAdmin(string id)
+        {
+            AppUser user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+
+            await _userManager.AddToRoleAsync(user, "Admin");
+
+            TempData["SuccessMessage"] = $"{user.Email} promoted to Admin.";
+            return RedirectToAction(nameof(ManageEmployees));
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DemoteFromAdmin(string id)
+        {
+            AppUser user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+
+            // Optional: prevent demoting yourself so you don't lock out all admins
+            if (user.Email == User.Identity.Name)
+            {
+                TempData["ErrorMessage"] = "You cannot remove your own Admin role.";
+                return RedirectToAction(nameof(ManageEmployees));
+            }
+
+            await _userManager.RemoveFromRoleAsync(user, "Admin");
+
+            TempData["SuccessMessage"] = $"{user.Email} is no longer an Admin.";
+            return RedirectToAction(nameof(ManageEmployees));
+        }
+
     }
 }

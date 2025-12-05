@@ -216,13 +216,31 @@ namespace fa25Group14FinalProject.Controllers
         }
 
         // GET: Account/Modify (Modify allowed fields)
-        public async Task<IActionResult> Modify()
+        // GET: Account/Modify
+        public async Task<IActionResult> Modify(string id)
         {
-            String id = GetUserID();
-            AppUser user = await _userManager.FindByIdAsync(id);
+            // Logged-in user
+            String currentUserId = GetUserID();
 
-            return View(user);
+            AppUser userToEdit;
+
+            // If an id is passed AND the current user is Employee/Admin,
+            // let them edit that customer instead of themselves
+            if (!String.IsNullOrEmpty(id) && (User.IsInRole("Employee") || User.IsInRole("Admin")))
+            {
+                userToEdit = await _userManager.FindByIdAsync(id);
+            }
+            else
+            {
+                // Normal case: customer editing their own account
+                userToEdit = await _userManager.FindByIdAsync(currentUserId);
+            }
+
+            if (userToEdit == null) return NotFound();
+
+            return View(userToEdit);
         }
+
 
         // POST: Account/Modify
         [HttpPost]
@@ -239,7 +257,14 @@ namespace fa25Group14FinalProject.Controllers
                 if (userToModifyView == null) return NotFound();
                 return View(userToModifyView);
             }
+            String currentUserId = GetUserID();
+            bool isEmployeeOrAdmin = User.IsInRole("Employee") || User.IsInRole("Admin");
 
+            // Security: customers can ONLY modify themselves
+            if (!isEmployeeOrAdmin && updatedUser.Id != currentUserId)
+            {
+                return View("Error", new string[] { "You are not authorized to modify this account." });
+            }
             // Use a different variable name to avoid shadowing
             var userToModify = _context.Users.FirstOrDefault(u => u.Id == updatedUser.Id);
 
@@ -258,6 +283,11 @@ namespace fa25Group14FinalProject.Controllers
             await _context.SaveChangesAsync();
 
             TempData["SuccessMessage"] = "Account successfully updated.";
+            // If an employee/admin edited someone ELSE, send them back to ManageCustomers
+            if (isEmployeeOrAdmin && updatedUser.Id != currentUserId)
+            {
+                return RedirectToAction("ManageCustomers", "Employees");
+            }
             return RedirectToAction(nameof(Index));
         }
 

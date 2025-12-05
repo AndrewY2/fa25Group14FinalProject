@@ -48,6 +48,16 @@
                                 </a>
                             </li>
                         }
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link"
+                                   asp-controller="Employees"
+                                   asp-action="ManageEmployees">
+                                    Manage Employees
+                                </a>
+                            </li>
+                        }
 
 
                         @* Customer-only account page *@
