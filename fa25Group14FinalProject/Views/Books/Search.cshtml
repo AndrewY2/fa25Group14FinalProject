@@ -61,38 +61,10 @@
     Showing <strong>@ViewBag.SelectedBooks</strong> out of <strong>@ViewBag.AllBooks</strong> books
 </div>
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>Title:</th>
-            <th>Author:</th>
-            <th>Unique Number:</th>
-            <th>In Stock:</th>
-            <th>Rating:</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (Book item in books)
-        {
-            var approvedReviews = item.Reviews?
-                .Where(r => r.IsApproved == true)
-                .ToList() ?? new List<Review>();
-
-            double rating = approvedReviews.Any()
-                ? approvedReviews.Average(r => r.Rating)
-                : 0.0;
-
-            <tr>
-                <td>@item.Title</td>
-                <td>@item.Authors</td>
-                <td>@item.BookNumber</td>
-                <td>@(item.InventoryQuantity > 0 ? "Yes" : "No")</td>
-                <td>@rating.ToString("0.00")</td>
-                <td>
-                    <a asp-action="Details" asp-route-id="@item.BookID">View Details</a>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+@{
+    ViewBag.SearchMode = "customer";
+}
+@await Html.PartialAsync(
+"_BookSearchResults",
+    (IEnumerable<fa25Group14FinalProject.Models.Book>)books
+)

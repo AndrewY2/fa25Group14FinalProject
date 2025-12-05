@@ -82,9 +82,9 @@
                         @* Admin-only tools *@
                         @if (User.IsInRole("Admin"))
                         {
-                            <li class="nav-item">
+                            @* <li class="nav-item">
                                 <a asp-controller="RoleAdmin" asp-action="Index" class="nav-link">Manage Users</a>
-                            </li>
+                            </li> *@
                             <li class="nav-item">
                                 <a asp-controller="Promotions" asp-action="Index" class="nav-link">Promotions</a>
                             </li>

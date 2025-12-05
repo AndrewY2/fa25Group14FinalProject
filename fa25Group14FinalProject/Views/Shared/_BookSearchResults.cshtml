@@ -1,0 +1,48 @@
+﻿@model IEnumerable<fa25Group14FinalProject.Models.Book>
+@{
+    // "customer" (default) or "procurement"
+    var mode = ViewBag.SearchMode as string ?? "customer";
+}
+
+<table class="table table-striped table-hover">
+    <thead class="table-dark">
+        <tr>
+            <th>Title</th>
+            <th>Authors</th>
+            <th class="text-center">Inventory</th>
+            <th class="text-end">Price</th>
+            <th class="text-center">Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var b in Model)
+        {
+            <tr>
+                <td>@b.Title</td>
+                <td>@b.Authors</td>
+                <td class="text-center">@b.InventoryQuantity</td>
+                <td class="text-end">@b.Price.ToString("C")</td>
+                <td class="text-center">
+                    @if (mode == "customer")
+                    {
+                        <a asp-controller="Books"
+                           asp-action="Details"
+                           asp-route-id="@b.BookID"
+                           class="btn btn-sm btn-primary">
+                            View Details
+                        </a>
+                    }
+                    else if (mode == "procurement")
+                    {
+                        <a asp-controller="Reorders"
+                           asp-action="OrderBook"
+                           asp-route-id="@b.BookID"
+                           class="btn btn-sm btn-outline-primary">
+                            Order from Supplier
+                        </a>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
