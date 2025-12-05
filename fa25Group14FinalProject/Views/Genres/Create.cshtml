@@ -1,0 +1,34 @@
+﻿@model fa25Group14FinalProject.Models.Genre
+
+@{
+    ViewData["Title"] = "Add a Genre";
+}
+
+<h4>Add a new Genre</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Create">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" name="bookId" value="@ViewBag.ReturnBookId" />
+
+            <div class="form-group">
+                <label asp-for="GenreName" class="control-label"></label>
+                <input asp-for="GenreName" class="form-control" />
+                <span asp-validation-for="GenreName" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Create and return to book" class="btn btn-primary" /> |
+                @if (ViewBag.ReturnBookId != null)
+                {
+                    <a asp-controller="Books" asp-action="Edit" asp-route-id="@ViewBag.ReturnBookId" class="btn btn-secondary">Back to Book</a>
+                }
+                else
+                {
+                    <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+                }
+            </div>
+        </form>
+    </div>
+</div>
+

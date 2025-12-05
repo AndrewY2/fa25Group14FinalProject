@@ -54,7 +54,10 @@
             @* 6. Publication Date (NEW FIELD) *@
             <div class="form-group">
                 <label asp-for="PublishDate" class="control-label"></label>
-                <input asp-for="PublishDate" class="form-control" />
+                <input asp-for="PublishDate"
+                       class="form-control"
+                       type="date"
+                       asp-format="{0:yyyy-MM-dd}" />
                 <span asp-validation-for="PublishDate" class="text-danger"></span>
             </div>
             
@@ -65,14 +68,18 @@
                     <option value="">Select a Genre</option>
                 </select>
                 <span asp-validation-for="GenreID" class="text-danger"></span>
+                <small class="form-text text-muted">
+                    Don’t see the right genre?
+                    <a asp-controller="Genres" asp-action="Create" asp-route-bookId="@Model.BookID">Add a new genre</a>
+                </small>
             </div>
 
-            @* 8. Inventory Quantity (NEW FIELD) *@
+            @* 8. Inventory Quantity (NEW FIELD) - removed because you shouldn't be able to add this manually 
             <div class="form-group">
                 <label asp-for="InventoryQuantity" class="control-label"></label>
                 <input asp-for="InventoryQuantity" class="form-control" />
                 <span asp-validation-for="InventoryQuantity" class="text-danger"></span>
-            </div>
+            </div>*@
             
             @* 9. Reorder Point (NEW FIELD) *@
             <div class="form-group">
@@ -89,8 +96,6 @@
                 </label>
             </div>
             
-            @* REMOVED: Suppliers section - Obsolete M:M relationship *@
-
             <div class="form-group">
                 <input type="submit" value="Save" class="btn btn-primary" />
             </div>
