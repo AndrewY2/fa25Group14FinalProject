@@ -10,9 +10,8 @@ using Microsoft.AspNetCore.Identity;
 
 namespace fa25Group14FinalProject.Controllers
 {
-    // Only customers who have purchased a book can write a review.
-    //removed for milestone 6
-    [Authorize(Roles = "Customer")]
+    // All actions require authentication; specific role restrictions are placed on each action.
+    [Authorize]
     public class ReviewsController : Controller
     {
         private readonly AppDbContext _context;
@@ -30,13 +29,18 @@ namespace fa25Group14FinalProject.Controllers
             return _userManager.GetUserId(User);
         }
 
-        //index method - added for milestone 6
-        public async Task<IActionResult> Index()
+        // We’ll use Index later if you want "My Reviews"; safe to leave as-is for now.
+        public IActionResult Index()
         {
             return View();
         }
 
+        // =======================
+        // CUSTOMER: CREATE REVIEW
+        // =======================
+
         // GET: Reviews/Create/5 (Display the form to write a review for a specific book ID)
+        [Authorize(Roles = "Customer")]
         public async Task<IActionResult> Create(int? bookID)
         {
             if (bookID == null)
@@ -44,14 +48,13 @@ namespace fa25Group14FinalProject.Controllers
                 return NotFound();
             }
 
-            // 1. Authorization Check: Customers are limited to rating books they have purchased. [cite: 200]
             string userID = GetUserID();
 
-            // Check if the customer has placed a shipped order containing this book.
+            // Check if the customer has placed an order containing this book and it is finalized.
             bool hasPurchased = await _context.OrderDetails
                 .Where(od => od.BookID == bookID &&
                              od.Order.CustomerID == userID &&
-                             od.Order.OrderStatus == OrderStatus.Ordered) // Check against finalized orders
+                             od.Order.OrderStatus == OrderStatus.Ordered)
                 .AnyAsync();
 
             if (!hasPurchased)
@@ -60,7 +63,7 @@ namespace fa25Group14FinalProject.Controllers
                 return RedirectToAction("Details", "Books", new { id = bookID });
             }
 
-            // 2. Check: A customer can only review a book once. [cite: 204]
+            // A customer can only review a book once.
             bool alreadyReviewed = await _context.Reviews
                 .Where(r => r.BookID == bookID && r.ReviewerID == userID)
                 .AnyAsync();
@@ -71,11 +74,17 @@ namespace fa25Group14FinalProject.Controllers
                 return RedirectToAction("Details", "Books", new { id = bookID });
             }
 
-            // Fetch book details for the view display
+            // Fetch book details for view display
             Book book = await _context.Books.FindAsync(bookID);
+            if (book == null) return NotFound();
 
-            // Pre-populate the Review model
-            Review newReview = new Review { BookID = bookID.Value, Book = book, ReviewDate = DateTime.Now };
+            // Pre-populate Review
+            Review newReview = new Review
+            {
+                BookID = bookID.Value,
+                Book = book,
+                ReviewDate = DateTime.Now
+            };
 
             return View(newReview);
         }
@@ -85,52 +94,128 @@ namespace fa25Group14FinalProject.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("BookID, Rating, ReviewText")] Review review)
         {
-            // Set required foreign keys and internal properties
+            // 1. Attach internal fields that are NOT coming from the form
             review.ReviewerID = GetUserID();
             review.ReviewDate = DateTime.Now;
-            review.IsApproved = null; // Reviews must be approved by an employee before they show up. [cite: 201]
+            review.IsApproved = null; // must be approved by employee
 
-            // Remove navigational properties from model state validation
+            // Because ReviewerID etc. aren't in the form, ModelState may
+            // think they're "missing" – clear those specific keys.
+            ModelState.Remove("ReviewerID");
             ModelState.Remove("Reviewer");
+            ModelState.Remove("Approver");
+            ModelState.Remove("ApproverID");
             ModelState.Remove("Book");
+            ModelState.Remove("DisputeStatus");
+            ModelState.Remove("IsApproved");
+            ModelState.Remove("ReviewDate");
 
-            // Re-check purchase authorization and single review rule inside POST (security)
-            if (!ModelState.IsValid || !HasPurchasedAndNotReviewed(review.BookID, review.ReviewerID))
+            // 2. Validate the basic model (rating + text)
+            if (!ModelState.IsValid)
             {
-                TempData["ErrorMessage"] = "Invalid submission. Please ensure you have purchased the book and have not reviewed it previously.";
+                // Re-load the Book so the view can display title/author
                 review.Book = await _context.Books.FindAsync(review.BookID);
                 return View(review);
             }
 
-            // IMPORTANT: If writing a review, the customer must include a rating on a scale of 1-5 (whole numbers). [cite: 198]
-            // Review model validation annotations should enforce Rating and ReviewText length (100 characters). [cite: 199]
+            // 3. Security/business rule: user must have bought the book
+            //    and can only review once.
+            if (!HasPurchasedAndNotReviewed(review.BookID, review.ReviewerID))
+            {
+                TempData["ErrorMessage"] = "You can only review books you have purchased and you may only review each book once.";
+                return RedirectToAction("Details", "Books", new { id = review.BookID });
+            }
 
+            // 4. All good – save the review as pending approval
             _context.Reviews.Add(review);
             await _context.SaveChangesAsync();
 
             TempData["SuccessMessage"] = "Review submitted successfully! It will appear on the website once approved by an employee.";
-
             return RedirectToAction("Details", "Books", new { id = review.BookID });
         }
 
-        // --- HELPER METHOD ---
 
-        // Helper to check the purchase and single-review constraint inside the POST
+        // Helper: purchase + single-review constraint
         private bool HasPurchasedAndNotReviewed(int bookID, string userID)
         {
-            // Check if customer has placed a shipped order containing this book.
             bool hasPurchased = _context.OrderDetails
-                .Where(od => od.BookID == bookID &&
-                             od.Order.CustomerID == userID &&
-                             od.Order.OrderStatus == OrderStatus.Ordered)
-                .Any();
+                .Any(od => od.BookID == bookID &&
+                           od.Order.CustomerID == userID &&
+                           od.Order.OrderStatus == OrderStatus.Ordered);
 
-            // Check if already reviewed
             bool alreadyReviewed = _context.Reviews
-                .Where(r => r.BookID == bookID && r.ReviewerID == userID)
-                .Any();
+                .Any(r => r.BookID == bookID && r.ReviewerID == userID);
 
             return hasPurchased && !alreadyReviewed;
+        }
+
+        // ======================
+        // EMPLOYEE/ADMIN QUEUE
+        // ======================
+
+        // GET: Reviews/Pending
+        // Shows all reviews where IsApproved is null (pending)
+        [Authorize(Roles = "Admin,Employee")]
+        public async Task<IActionResult> Pending()
+        {
+            var pendingReviews = await _context.Reviews
+                .Where(r => r.IsApproved == null)
+                .Include(r => r.Book)
+                .Include(r => r.Reviewer)
+                .OrderBy(r => r.ReviewDate)
+                .ToListAsync();
+
+            return View(pendingReviews);
+        }
+
+        // POST: Reviews/Approve/5
+        [HttpPost]
+        [Authorize(Roles = "Admin,Employee")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Approve(int id)
+        {
+            var review = await _context.Reviews
+                .Include(r => r.Book)
+                .FirstOrDefaultAsync(r => r.ReviewID == id);
+
+            if (review == null)
+            {
+                return NotFound();
+            }
+
+            review.IsApproved = true;
+            review.DisputeStatus = DisputeStatus.Approve;
+            review.ApproverID = GetUserID();
+
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = $"Review for '{review.Book?.Title}' has been approved.";
+            return RedirectToAction(nameof(Pending));
+        }
+
+        // POST: Reviews/Reject/5
+        [HttpPost]
+        [Authorize(Roles = "Admin,Employee")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Reject(int id)
+        {
+            var review = await _context.Reviews
+                .Include(r => r.Book)
+                .FirstOrDefaultAsync(r => r.ReviewID == id);
+
+            if (review == null)
+            {
+                return NotFound();
+            }
+
+            review.IsApproved = false;
+            review.DisputeStatus = DisputeStatus.Reject;
+            review.ApproverID = GetUserID();
+
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = $"Review for '{review.Book?.Title}' has been rejected.";
+            return RedirectToAction(nameof(Pending));
         }
     }
 }

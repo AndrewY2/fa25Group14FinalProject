@@ -1,3 +1,4 @@
+@using fa25Group14FinalProject.Models
 @model fa25Group14FinalProject.Models.Order
 
 @{
@@ -17,12 +18,14 @@
             <dd class="col-sm-8">
                 @Html.DisplayFor(model => model.OrderID)
             </dd>
+
             <dt class="col-sm-4">
                 @Html.DisplayNameFor(model => model.OrderDate)
             </dt>
             <dd class="col-sm-8">
                 @Html.DisplayFor(model => model.OrderDate)
             </dd>
+
             <dt class="col-sm-4">
                 Customer Name
             </dt>
@@ -99,6 +102,7 @@
 <br />
 
 <h4>Order Contents:</h4>
+
 @if (Model.OrderDetails == null || Model.OrderDetails.Count == 0)
 {
     <p>This order contains no items yet.</p>
@@ -112,6 +116,7 @@ else
                 <th>Price</th>
                 <th>Quantity</th>
                 <th>Extended Price</th>
+                <th></th> @* Actions column for Write Review *@
             </tr>
         </thead>
         <tbody>
@@ -122,6 +127,18 @@ else
                     <td>@od.Price.ToString("C")</td>
                     <td>@od.Quantity</td>
                     <td>@od.ExtendedPrice.ToString("C")</td>
+                    <td>
+                        @* Customers can write a review for this book from the Order Details page *@
+                        @if (User.IsInRole("Customer"))
+                        {
+                            <a asp-controller="Reviews"
+                               asp-action="Create"
+                               asp-route-bookID="@od.BookID"
+                               class="btn btn-sm btn-outline-primary">
+                                Write Review
+                            </a>
+                        }
+                    </td>
                 </tr>
             }
         </tbody>
