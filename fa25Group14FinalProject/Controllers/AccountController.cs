@@ -92,9 +92,19 @@ namespace fa25Group14FinalProject.Controllers
 
                 await EmailUtils.SendEmailAsync(newUser.Email, subject, body);
 
-                await _signInManager.PasswordSignInAsync(rvm.Email, rvm.Password, false, lockoutOnFailure: false);
-
-                return RedirectToAction("Index", "Home");
+                if (!User.Identity.IsAuthenticated)
+                {
+                    // Normal customer self-registration
+                    await _signInManager.PasswordSignInAsync(rvm.Email, rvm.Password, false, lockoutOnFailure: false);
+                    return RedirectToAction("Index", "Home");
+                }
+                else
+                {
+                    // An employee/admin created this customer while already logged in.
+                    // Do NOT sign in as the new customer – keep the current user.
+                    TempData["SuccessMessage"] = $"Customer account for {newUser.Email} created successfully.";
+                    return RedirectToAction("ManageCustomers", "Employees");
+                }
             }
             else
             {
