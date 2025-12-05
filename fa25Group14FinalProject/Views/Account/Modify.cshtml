@@ -68,7 +68,7 @@
 <br />
 
 <div>
-    @if (User.IsInRole("Employee") || User.IsInRole("Admin"))
+    @if (User.IsInRole("Employee"))
 {
     <!-- Employee/Admin editing a customer -->
     <a asp-controller="Employees"
@@ -77,7 +77,15 @@
         Back to Customers
     </a>
 }
-else
+    @if (User.IsInRole("Admin"))
+    {
+        <a asp-controller="Employees"
+           asp-action="ManageEmployees"
+           class="btn btn-secondary">
+            Back to Employees
+        </a>
+    }
+    else
 {
     <a asp-action="Index">Back to Account Details</a>
 }
