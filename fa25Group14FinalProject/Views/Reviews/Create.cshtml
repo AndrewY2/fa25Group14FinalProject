@@ -22,6 +22,9 @@
             @* VERY IMPORTANT: send BookID back to POST *@
             <input type="hidden" asp-for="BookID" />
 
+            @* Validation summary for any ModelState errors *@
+            <div asp-validation-summary="All" class="text-danger"></div>
+
             <div class="form-group">
                 <label asp-for="Rating"></label>
                 <input asp-for="Rating" class="form-control" />
