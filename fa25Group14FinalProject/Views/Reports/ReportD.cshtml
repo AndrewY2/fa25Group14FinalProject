@@ -1,5 +1,65 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
+﻿@model dynamic
+
 @{
+    ViewData["Title"] = "Report D - Totals";
+
+    // Check if the model is not null (i.e., if there was any data to aggregate)
+    // The controller uses FirstOrDefaultAsync, so this could be null if no orders matched the filter.
+    bool hasData = Model != null;
+
+    decimal totalRevenue = hasData ? (decimal)Model.TotalRevenue : 0m;
+    decimal totalCost = hasData ? (decimal)Model.TotalCost : 0m;
+    decimal totalProfit = hasData ? (decimal)Model.TotalProfit : 0m;
+}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        <a asp-controller="Reports" asp-action="Index" class="btn btn-secondary mb-3">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<h2 class="mb-3">Aggregate Totals Report</h2>
+
+<p>
+    This report shows the **Total Profit, Total Cost, and Total Revenue** aggregated across all orders currently matching the applied filters.
+    This report contains only three numbers.
+</p>
+
+<p><strong>Record count:</strong> @ViewBag.RecordCount</p>
+
+@if (hasData)
+{
+    <div class="card-deck">
+
+        <div class="card text-white bg-success mb-3 shadow">
+            <div class="card-header">Total Revenue (Excl. Shipping)</div>
+            <div class="card-body">
+                <h1 class="card-title display-4">@totalRevenue.ToString("C")</h1>
+            </div>
+        </div>
+
+        <div class="card text-white bg-danger mb-3 shadow">
+            <div class="card-header">Total Cost (Weighted Average)</div>
+            <div class="card-body">
+                <h1 class="card-title display-4">@totalCost.ToString("C")</h1>
+            </div>
+        </div>
+
+        <div class="card text-white bg-primary mb-3 shadow">
+            <div class="card-header">Total Profit (Revenue - Cost)</div>
+            <div class="card-body">
+                <h1 class="card-title display-4">@totalProfit.ToString("C")</h1>
+            </div>
+        </div>
+
+    </div>
+}
+
+@if (!hasData)
+{
+    <div class="alert alert-warning mt-4" role="alert">
+        <strong>No records found.</strong> No sales data was found matching the selected filters to generate this totals report.
+    </div>
 }

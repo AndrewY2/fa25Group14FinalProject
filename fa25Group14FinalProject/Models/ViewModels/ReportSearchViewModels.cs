@@ -22,10 +22,10 @@ namespace fa25Group14FinalProject.Models
 
         // Specific Filtering (Example)
         [Display(Name = "Filter by Customer")]
-        public string CustomerFilter { get; set; } // E.g., Customer Email or Name
+        public string? CustomerFilter { get; set; } // E.g., Customer Email or Name
 
         [Display(Name = "Filter by Book/Genre")]
-        public string BookFilter { get; set; } // E.g., Book Title or Genre Name
+        public string? BookFilter { get; set; } // E.g., Book Title or Genre Name
 
         // Sorting (Required for all reports)
         [Display(Name = "Sort By")]

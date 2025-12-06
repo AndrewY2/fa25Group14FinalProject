@@ -240,14 +240,20 @@ namespace fa25Group14FinalProject.Controllers
 
             var roles = await _userManager.GetRolesAsync(userToEdit);
 
-            // Pass a value to tell the view what page it came from
+            // CRUCIAL FIX: Set ViewBag based on the role of the user being EDITED.
+            // If the account being edited is an Employee or Admin, the back button should go to ManageEmployees.
             if (roles.Contains("Employee") || roles.Contains("Admin"))
             {
-                ViewBag.ReturnTo = "Employees";
+                ViewBag.ReturnTo = "Employees"; // Indicates return to ManageEmployees
+            }
+            // Otherwise, the account being edited is a Customer, or the user is editing themselves.
+            else if (User.IsInRole("Employee") || User.IsInRole("Admin"))
+            {
+                ViewBag.ReturnTo = "Customers"; // Indicates return to ManageCustomers
             }
             else
             {
-                ViewBag.ReturnTo = "Customers";
+                ViewBag.ReturnTo = "Self"; // Indicates return to Account/Index
             }
 
             return View(userToEdit);
@@ -264,8 +270,23 @@ namespace fa25Group14FinalProject.Controllers
 
             if (ModelState.IsValid == false)
             {
-                // Rename variable to avoid CS0136 shadowing and handle possible null for CS8600
                 var userToModifyView = await _userManager.FindByIdAsync(updatedUser.Id);
+                // FIX for GET Modify if validation fails: Re-calculate ViewBag.ReturnTo for the view refresh
+                var rolesOnRefresh = await _userManager.GetRolesAsync(userToModifyView);
+
+                if (rolesOnRefresh.Contains("Employee") || rolesOnRefresh.Contains("Admin"))
+                {
+                    ViewBag.ReturnTo = "Employees";
+                }
+                else if (User.IsInRole("Employee") || User.IsInRole("Admin"))
+                {
+                    ViewBag.ReturnTo = "Customers";
+                }
+                else
+                {
+                    ViewBag.ReturnTo = "Self";
+                }
+
                 if (userToModifyView == null) return NotFound();
                 return View(userToModifyView);
             }
@@ -277,12 +298,12 @@ namespace fa25Group14FinalProject.Controllers
             {
                 return View("Error", new string[] { "You are not authorized to modify this account." });
             }
-            // Use a different variable name to avoid shadowing
+
             var userToModify = _context.Users.FirstOrDefault(u => u.Id == updatedUser.Id);
 
             if (userToModify == null) return NotFound();
 
-            // Update only the allowed fields [cite: 66]
+            // Update only the allowed fields [cite: 86]
             userToModify.FirstName = updatedUser.FirstName;
             userToModify.LastName = updatedUser.LastName;
             userToModify.Address = updatedUser.Address;
@@ -295,7 +316,8 @@ namespace fa25Group14FinalProject.Controllers
             await _context.SaveChangesAsync();
 
             TempData["SuccessMessage"] = "Account successfully updated.";
-            // If an employee/admin edited someone ELSE, send them back to ManageCustomers
+
+            // Redirect logic remains correct:
             if (isEmployeeOrAdmin && updatedUser.Id != currentUserId)
             {
                 var rolesOfEdited = await _userManager.GetRolesAsync(userToModify);

@@ -2,7 +2,24 @@
 
 @{
     ViewData["Title"] = "Place Manual Order";
+
+    // Assuming ViewBag.AvgProfitMargin is set in the Controller (as required)
+    string avgProfitMargin = ViewBag.AvgProfitMargin ?? "N/A";
+
+    // Get the Book's Current WAC from the Book model for display
+    string currentWAC = Model.Book?.Cost.ToString("C") ?? "N/A";
+
+    // Get the default Cost (Last Paid Price) from the Reorder model for display
+    string lastPaidCost = Model.Cost.ToString("C");
 }
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        <a asp-controller="Reorders" asp-action="Index" class="btn btn-secondary mb-3">
+            <i class="fas fa-arrow-left"></i> Back to Procurement Dashboard
+        </a>
+    </div>
+</div>
 
 <h1>Place Manual Order</h1>
 <hr />
@@ -20,8 +37,12 @@ else
                 <strong>Authors:</strong> @Model.Book.Authors<br />
                 <strong>Current Inventory:</strong> @Model.Book.InventoryQuantity<br />
                 <strong>Reorder Point:</strong> @Model.Book.ReorderPoint<br />
-                <strong>Selling Price:</strong> @Model.Book.Price.ToString("C")<br />
+                <strong>Selling Price to Customer:</strong> @Model.Book.Price.ToString("C")<br />
             </p>
+
+            <div class="alert alert-info">
+                <strong>Average Profit Margin Per Unit Sold:</strong> @avgProfitMargin
+            </div>
         </div>
     </div>
 
@@ -36,9 +57,10 @@ else
                 <input type="hidden" asp-for="BookID" />
 
                 <div class="form-group mb-2">
-                    <label asp-for="Cost" class="control-label"></label>
+                    <label asp-for="Cost" class="control-label">Supplier Cost (Last Paid: @lastPaidCost)</label>
                     <input asp-for="Cost" class="form-control" />
                     <span asp-validation-for="Cost" class="text-danger"></span>
+                    <small class="form-text text-muted">Input a different cost if the supplier price changed. Must be > $0.00.</small>
                 </div>
 
                 <div class="form-group mb-2">
@@ -53,4 +75,3 @@ else
         </div>
     </div>
 }
-

@@ -4,6 +4,14 @@
     ViewData["Title"] = "Review Automatic Orders";
 }
 
+<div class="row mt-3">
+    <div class="col-md-12">
+        <a asp-action="Index" class="btn btn-secondary mb-3">
+            <i class="fas fa-arrow-left"></i> Back to Procurement Dashboard
+        </a>
+    </div>
+</div>
+
 <h1>Review Automatic Orders</h1>
 <hr />
 
@@ -21,14 +29,15 @@
     </div>
 
     <p>
-        <a asp-action="Index" class="btn btn-secondary">Back to Procurement</a>
+
     </p>
 }
 else
 {
     <p class="text-muted">
         Review the suggested quantities and costs for each book.
-        Set quantity to 0 to skip ordering that title.
+        The default quantity is 5 (citation removed for Razor compatibility).
+        Set quantity to <strong>0</strong> to skip ordering that title.
     </p>
 
     <form asp-action="PlaceAutomaticOrders" method="post">
@@ -43,35 +52,30 @@ else
                     <th class="text-center">Quantity to Order</th>
                 </tr>
             </thead>
+
             <tbody>
                 @for (int i = 0; i < Model.Count; i++)
                 {
                     <tr>
-                        <!-- Hidden keys so the list binds correctly -->
-                        <input type="hidden" asp-for="@Model[i].BookID" />
-                        <input type="hidden" asp-for="@Model[i].ReorderID" />
+                        <input type="hidden" asp-for="@(Model[i].BookID)" />
 
-                        <td>
-                            @Model[i].Book?.Title
-                        </td>
-                        <td>
-                            @Model[i].Book?.Authors
-                        </td>
-                        <td class="text-center">
-                            @Model[i].Book?.InventoryQuantity
-                        </td>
-                        <td class="text-center">
-                            @Model[i].Book?.ReorderPoint
-                        </td>
+                        <td>@Model[i].Book?.Title</td>
+                        <td>@Model[i].Book?.Authors</td>
+                        <td class="text-center">@Model[i].Book?.InventoryQuantity</td>
+                        <td class="text-center">@Model[i].Book?.ReorderPoint</td>
+
                         <td class="text-end" style="max-width: 120px;">
-                            <input asp-for="@Model[i].Cost"
-                                   class="form-control form-control-sm text-end" />
-                            <span asp-validation-for="@Model[i].Cost" class="text-danger"></span>
+                            <input asp-for="@(Model[i].Cost)"
+                                   class="form-control form-control-sm text-end"
+                                   min="0.01" />
+                            <span asp-validation-for="@(Model[i].Cost)" class="text-danger"></span>
                         </td>
+
                         <td class="text-center" style="max-width: 120px;">
-                            <input asp-for="@Model[i].Quantity"
-                                   class="form-control form-control-sm text-center" />
-                            <span asp-validation-for="@Model[i].Quantity" class="text-danger"></span>
+                            <input asp-for="@(Model[i].Quantity)"
+                                   class="form-control form-control-sm text-center"
+                                   min="0" />
+                            <span asp-validation-for="@(Model[i].Quantity)" class="text-danger"></span>
                         </td>
                     </tr>
                 }
@@ -88,4 +92,3 @@ else
         </div>
     </form>
 }
-

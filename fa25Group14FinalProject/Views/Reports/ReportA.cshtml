@@ -1,4 +1,5 @@
 ﻿@model IEnumerable<dynamic>
+@using System.Linq
 
 @{
     ViewData["Title"] = "Report A - All Books Sold";
@@ -8,10 +9,8 @@
 
     // Start from the controller's data
     IEnumerable<dynamic> rowsEnum = Model;
-
     // Choose sort key
     Func<dynamic, object> keySelector = r => (DateTime)r.OrderDate;
-
     switch (sortBy)
     {
         case "margin":
@@ -21,11 +20,9 @@
         case "price":
             keySelector = r => (decimal)r.SellingPrice;
             break;
-
         case "popular":
             keySelector = r => (int)r.Quantity;
             break;
-
         default:
             // "recent" = by OrderDate
             keySelector = r => (DateTime)r.OrderDate;
@@ -46,15 +43,30 @@
     var rows = rowsEnum.ToList();
 }
 
+<div class="row mt-3">
+    <div class="col-md-12">
+        <a asp-controller="Reports" asp-action="Index" class="btn btn-secondary mb-3">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
 <h2>All Books Sold</h2>
 
 <p><strong>Record count:</strong> @ViewBag.RecordCount</p>
+
 <form asp-controller="Reports"
       asp-action="GenerateReport"
       method="get"
       class="form-inline mb-3">
+
     <input type="hidden" name="reportType" value="A" />
 
+    <input type="hidden" name="StartDate" value="@Context.Request.Query["StartDate"]" />
+    <input type="hidden" name="EndDate" value="@Context.Request.Query["EndDate"]" />
+    <input type="hidden" name="CustomerFilter" value="@Context.Request.Query["CustomerFilter"]" />
+    <input type="hidden" name="BookFilter" value="@Context.Request.Query["BookFilter"]" />
+    
     <div class="form-group mr-2">
         <label for="sortBy" class="mr-1">Sort by:</label>
         <select id="sortBy" name="sortBy" class="form-control">
@@ -84,6 +96,7 @@
             {
                 <option value="price">Price</option>
             }
+
 
             @if (sortBy == "popular")
             {
@@ -122,45 +135,54 @@
     </div>
     <button type="submit" class="btn btn-primary">Apply</button>
 </form>
-<table class="table table-striped table-sm">
-    <thead>
-        <tr>
-            <th>Order #</th>
-            <th>Order Date</th>
-            <th>Book Title</th>
-            <th>Customer</th>
-            <th>Quantity</th>
-            <th>Selling Price</th>
-            <th>Average Cost</th>
-            <th>Per-Unit Profit Margin</th>
-            <th>Total Revenue</th>
-            <th>Total Cost</th>
-            <th>Total Profit</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var row in rows)
-        {
-            decimal revenue = row.Quantity * row.SellingPrice;
-            decimal cost = row.Quantity * row.WeightedAverageCost;
-            decimal profit = revenue - cost;
 
+@if (ViewBag.RecordCount > 0)
+{
+    <table class="table table-striped table-sm">
+        <thead>
             <tr>
-                <td>@row.OrderNumber</td>
-                <td>@(((DateTime)row.OrderDate).ToShortDateString())</td>
-                <td>@row.BookTitle</td>
-                <td>@row.CustomerName</td>
-                <td>@row.Quantity</td>
-
-                <td>@(((decimal)row.SellingPrice).ToString("C"))</td>
-                <td>@(((decimal)row.WeightedAverageCost).ToString("C"))</td>
-                <td>@(((decimal)row.ProfitMargin).ToString("C"))</td>
-
-                <td>@revenue.ToString("C")</td>
-                <td>@cost.ToString("C")</td>
-                <td>@profit.ToString("C")</td>
+                <th>Order #</th>
+                <th>Order Date</th>
+                <th>Book Title</th>
+                <th>Customer</th>
+                <th>Quantity</th>
+                <th>Selling Price</th>
+                <th>Average Cost</th>
+                <th>Per-Unit Profit Margin</th>
+                <th>Total Revenue</th>
+                <th>Total Cost</th>
+                <th>Total Profit</th>
             </tr>
-        }
+        </thead>
+        <tbody>
+            @foreach (var row in rows)
+            {
+                decimal revenue = row.Quantity * row.SellingPrice;
+                decimal cost = row.Quantity * row.WeightedAverageCost;
+                decimal profit = revenue - cost;
+                <tr>
+                    <td>@row.OrderNumber</td>
+                    <td>@(((DateTime)row.OrderDate).ToShortDateString())</td>
+                    <td>@row.BookTitle</td>
+                    <td>@row.CustomerName</td>
+                    <td>@row.Quantity</td>
 
-    </tbody>
-</table>
+                    <td>@(((decimal)row.SellingPrice).ToString("C"))</td>
+
+                    <td>@(((decimal)row.WeightedAverageCost).ToString("C"))</td>
+                    <td>@(((decimal)row.ProfitMargin).ToString("C"))</td>
+
+                    <td>@revenue.ToString("C")</td>
+                    <td>@cost.ToString("C")</td>
+                    <td>@profit.ToString("C")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <div class="alert alert-warning" role="alert">
+        <strong>No records found.</strong> The current filters for Date Range, Customer, or Book/Genre did not match any sales data. Please adjust your criteria and try again.
+    </div>
+}

@@ -118,7 +118,7 @@ namespace fa25Group14FinalProject.Controllers
             ViewBag.SearchMode = "procurement";
             ViewBag.GenreSelectList = new SelectList(_context.Genres, "GenreID", "GenreName");
 
-            return View(svm); // returns Views/Reorders/ManualOrder.cshtml
+            return View("ManualOrder", svm); // returns Views/Reorders/ManualOrder.cshtml
         }
 
 
@@ -147,6 +147,9 @@ namespace fa25Group14FinalProject.Controllers
                 .Select(r => r.Cost)
                 .FirstOrDefault();
 
+            decimal avgProfitMargin = await CalculateAvgProfitMargin(book.BookID);
+            ViewBag.AvgProfitMargin = avgProfitMargin.ToString("C"); // Format as Currency for the View
+
             // Create a new Reorder object for the form input
             Reorder reorder = new Reorder
             {
@@ -168,11 +171,13 @@ namespace fa25Group14FinalProject.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> PlaceManualOrder([Bind("BookID,Cost,Quantity")] Reorder reorder)
         {
-            // Ensure cost is > 0 and quantity >= 0
-            if (reorder.Cost <= 0)
+            // Ensure cost is greater than zero
+            if (reorder.Cost <= 0) // Requirement: Book costs must be greater than zero [cite: 224]
             {
                 ModelState.AddModelError("Cost", "Book cost must be greater than zero.");
             }
+            // Ensure quantity is greater than zero
+            // NOTE: For manual order, the Admin orders a quantity, so it must be > 0.
             if (reorder.Quantity <= 0)
             {
                 ModelState.AddModelError("Quantity", "Quantity must be greater than zero for a manual order.");
@@ -191,12 +196,31 @@ namespace fa25Group14FinalProject.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // Reload the view with errors
-            reorder.Book = await _context.Books.FindAsync(reorder.BookID);
-            // ViewBag.AvgProfitMargin = CalculateAvgProfitMargin(reorder.BookID);
+            // --- FIX: Reload the view with errors, ensuring all view data is present ---
+
+            // 1. Reload the Book object completely (needed for Title, Authors, Selling Price, etc., in the view)
+            reorder.Book = await _context.Books
+                                         .Include(b => b.Reorders) // Required for getting last cost if you rebuild the view
+                                         .FirstOrDefaultAsync(b => b.BookID == reorder.BookID);
+
+            if (reorder.Book == null)
+            {
+                return NotFound();
+            }
+
+            // 2. Recalculate and set the required ViewBag data
+
+            // You MUST have the CalculateAvgProfitMargin method implemented in ReordersController.
+            // Assuming the method exists:
+            decimal avgProfitMargin = await CalculateAvgProfitMargin(reorder.BookID);
+            ViewBag.AvgProfitMargin = avgProfitMargin.ToString("C");
+
+            // Note: The Reorder.Cost model property already holds the value the user typed in (even if invalid)
+            // so no need to recalculate lastCost here unless you overwrite reorder.Cost.
+
+            // Return the specific view name and the model
             return View("OrderBook", reorder);
         }
-
         // --- AUTOMATIC REORDERING ---
 
         // GET: Reorders/AutomaticCheck
@@ -307,43 +331,60 @@ namespace fa25Group14FinalProject.Controllers
 
             if (reorder == null) return NotFound();
 
-            // Calculate the actual number to accept (cannot accept more than ordered)
+            // 1. Calculate the actual number to accept (cannot accept more than ordered) 
             int remainingToReceive = reorder.Quantity - reorder.QuantityReceived;
             int acceptedCopies = Math.Min(CopiesArrived, remainingToReceive);
 
             if (acceptedCopies <= 0)
             {
-                TempData["ErrorMessage"] = $"No copies were accepted for Reorder {ReorderID}.";
+                TempData["ErrorMessage"] = $"No copies were accepted for Reorder {ReorderID} as they were either over-shipped or the quantity was zero.";
                 return RedirectToAction(nameof(ViewBooksOnOrder));
             }
 
-            // 1. Update Inventory (use the accepted copies, not the arrival quantity)
+            // --- WAC CALCULATION MUST HAPPEN BEFORE INVENTORY QUANTITY IS UPDATED ---
+
+            // WAC Logic: (Old Stock * Old WAC) + (New Stock * New Cost) / (Old Stock + New Stock)
+            decimal oldWAC = reorder.Book.Cost;
+            // Calculate old stock BEFORE adding new accepted copies
+            int oldTotalStock = reorder.Book.InventoryQuantity;
+
+            // Only update WAC if there was existing stock or the new cost is different from the old WAC.
+            if (oldTotalStock > 0 || acceptedCopies > 0)
+            {
+                // Total value of the inventory BEFORE this arrival
+                decimal totalOldValue = oldWAC * oldTotalStock;
+
+                // Total value of the new copies received in this reorder
+                decimal totalNewValue = reorder.Cost * acceptedCopies;
+
+                // Total quantity after receiving
+                int newTotalStock = oldTotalStock + acceptedCopies;
+
+                if (newTotalStock > 0)
+                {
+                    // Calculate and apply the new WAC
+                    reorder.Book.Cost = (totalOldValue + totalNewValue) / newTotalStock;
+                }
+            }
+            // Note: If newTotalStock is 0, the book is considered out of stock, and WAC maintains its last value.
+
+            // --- INVENTORY UPDATE ---
+
+            // 2. Update Inventory Quantity [cite: 243]
             reorder.Book.InventoryQuantity += acceptedCopies;
 
-            // 2. Update Reorder Status
+            // 3. Update Reorder Status
             reorder.QuantityReceived += acceptedCopies;
 
             if (reorder.QuantityReceived == reorder.Quantity)
             {
-                reorder.ReorderStatus = ReorderStatus.FullyReceived;
+                reorder.ReorderStatus = ReorderStatus.FullyReceived; // [cite: 241-242]
             }
             else if (reorder.QuantityReceived > 0 && reorder.QuantityReceived < reorder.Quantity)
             {
                 reorder.ReorderStatus = ReorderStatus.PartiallyReceived;
             }
-            // Note: The excess copies are assumed to be returned, per requirements.
-
-            // 3. Update the Book's Weighted Average Cost (WAC) - CRUCIAL
-            // This logic is complex and should ideally be in a service/utility.
-            // Simplified WAC update: (Old Stock * Old WAC) + (New Stock * New Cost) / (Old Stock + New Stock)
-            /*
-            decimal oldWAC = reorder.Book.Cost; // The old WAC is stored in the Cost field of the Book model
-            decimal totalOldValue = oldWAC * (reorder.Book.InventoryQuantity - acceptedCopies);
-            decimal totalNewValue = reorder.Cost * acceptedCopies;
-            int newTotalStock = reorder.Book.InventoryQuantity;
-
-            reorder.Book.Cost = (totalOldValue + totalNewValue) / newTotalStock;
-            */
+            // Note: Over-shipped copies were already handled by acceptedCopies = Math.Min(...), per requirement[cite: 244].
 
             // 4. Save changes
             _context.Update(reorder.Book);
@@ -352,6 +393,38 @@ namespace fa25Group14FinalProject.Controllers
 
             TempData["SuccessMessage"] = $"Successfully checked in {acceptedCopies} copies for {reorder.Book.Title}.";
             return RedirectToAction(nameof(ViewBooksOnOrder));
+        }
+
+        // Helper function to calculate average profit margin from historical sales
+        private async Task<decimal> CalculateAvgProfitMargin(int bookId)
+        {
+            // Fetch all OrderDetails for this book from final orders
+            var salesHistory = await _context.OrderDetails
+                .Include(od => od.Order)
+                .Where(od => od.BookID == bookId && od.Order.OrderStatus == OrderStatus.Ordered)
+                .ToListAsync();
+
+            if (!salesHistory.Any())
+            {
+                return 0m;
+            }
+
+            // Profit = Total Revenue (based on price at time of order) - Total Cost (based on WAC at time of order)
+            decimal totalRevenue = salesHistory.Sum(od => od.Quantity * od.Price);
+            decimal totalCost = salesHistory.Sum(od => od.Quantity * od.Cost);
+            decimal totalProfit = totalRevenue - totalCost;
+
+            // Margin Percentage: (Profit / Revenue) * 100
+            if (totalRevenue == 0) return 0m;
+
+            // Note: The requirement asks for the "average profit margin" number (e.g., $5.00), not the percentage.
+            // We will calculate the average profit *per unit sold*.
+
+            int totalQuantitySold = salesHistory.Sum(od => od.Quantity);
+
+            if (totalQuantitySold == 0) return 0m;
+
+            return totalProfit / totalQuantitySold; // Average Profit Margin per unit sold
         }
     }
 }

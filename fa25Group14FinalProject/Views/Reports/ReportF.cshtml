@@ -1,5 +1,163 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
+﻿@model IEnumerable<dynamic>
+@using System.Linq
+
 @{
+    ViewData["Title"] = "Report F - Approved/Rejected Reviews";
+
+    // Read current sort options from query string
+    string sortBy = (Context.Request.Query["sortBy"].FirstOrDefault() ?? "empid").ToLower();
+    string sortDir = (Context.Request.Query["sortDir"].FirstOrDefault() ?? "asc").ToLower(); // Default for EmpID is ASC
+
+    // Start from the controller's data
+    IEnumerable<dynamic> rowsEnum = Model;
+    // Choose sort key
+    Func<dynamic, object> keySelector;
+    switch (sortBy)
+    {
+        case "approved":
+            keySelector = r => (int)r.ApprovedCount;
+            break;
+        case "rejected":
+            keySelector = r => (int)r.RejectedCount;
+            break;
+        case "empid":
+        default:
+            keySelector = r => (string)r.EmployeeID; // Sort by the string Employee ID (AppUser.Id)
+            break;
+    }
+
+    // Apply ascending/descending
+    if (sortDir == "asc")
+    {
+        rowsEnum = rowsEnum.OrderBy(keySelector);
+    }
+    else
+    {
+        rowsEnum = rowsEnum.OrderByDescending(keySelector);
+    }
+
+    var rows = rowsEnum.ToList();
+}
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        <a asp-controller="Reports" asp-action="Index" class="btn btn-secondary mb-3">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<h2 class="mb-3">Approved/Rejected Reviews by Employee</h2>
+
+<p>
+    This report displays the total number of reviews each employee (or Admin) has approved or rejected.
+</p>
+
+<p><strong>Record count:</strong> @ViewBag.RecordCount</p>
+
+<form asp-controller="Reports"
+      asp-action="GenerateReport"
+      method="get"
+      class="form-inline mb-3">
+
+    <input type="hidden" name="reportType" value="F" />
+
+    <input type="hidden" name="StartDate" value="@Context.Request.Query["StartDate"]" />
+    <input type="hidden" name="EndDate" value="@Context.Request.Query["EndDate"]" />
+    <input type="hidden" name="CustomerFilter" value="@Context.Request.Query["CustomerFilter"]" />
+    <input type="hidden" name="BookFilter" value="@Context.Request.Query["BookFilter"]" />
+
+    <div class="form-group mr-2">
+        <label for="sortBy" class="mr-1">Sort by:</label>
+        <select id="sortBy" name="sortBy" class="form-control">
+            @if (sortBy == "empid")
+            {
+                <option value="empid" selected>Employee ID</option>
+            }
+            else
+            {
+                <option value="empid">Employee ID</option>
+            }
+
+            @if (sortBy == "approved")
+            {
+                <option value="approved" selected>Approved Reviews</option>
+            }
+            else
+            {
+                <option value="approved">Approved Reviews</option>
+            }
+
+            @if (sortBy == "rejected")
+            {
+                <option value="rejected" selected>Rejected Reviews</option>
+            }
+            else
+            {
+                <option value="rejected">Rejected Reviews</option>
+            }
+        </select>
+    </div>
+
+    <div class="form-group mr-2">
+        <label for="sortDir" class="mr-1">Direction:</label>
+        <select id="sortDir" name="sortDir" class="form-control">
+            @if (sortDir == "asc")
+            {
+                <option value="asc" selected>Ascending</option>
+            }
+            else
+            {
+                <option value="asc">Ascending</option>
+            }
+
+            @if (sortDir == "desc")
+            {
+                <option value="desc" selected>Descending</option>
+            }
+            else
+            {
+                <option value="desc">Descending</option>
+            }
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Apply</button>
+</form>
+
+@if (ViewBag.RecordCount > 0)
+{
+    <table class="table table-striped table-sm">
+        <thead>
+            <tr>
+                <th>Employee Name</th>
+                <th>Employee ID (For Sorting)</th>
+                <th>Approved Reviews</th>
+                <th>Rejected Reviews</th>
+                <th>Total Reviews Processed</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in rows)
+            {
+                int approved = (int)row.ApprovedCount;
+                int rejected = (int)row.RejectedCount;
+                int total = approved + rejected;
+
+                <tr>
+                    <td>@row.EmployeeName</td>
+                    <td>@row.EmployeeID</td>
+                    <td class="text-success font-weight-bold">@approved</td>
+                    <td class="text-danger">@rejected</td>
+                    <td>@total</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <div class="alert alert-warning" role="alert">
+        <strong>No records found.</strong> No reviews have been approved or rejected yet, or no processed reviews matched the current filters.
+    </div>
 }

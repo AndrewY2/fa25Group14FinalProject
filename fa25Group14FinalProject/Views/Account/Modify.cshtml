@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = "Modify Account Information";
+    // Assuming ViewBag.ReturnTo is set to "Employees", "Customers", or "Self" in the Controller.
 }
 
 <h2>✍️ Edit Account Information</h2>
@@ -68,16 +69,8 @@
 <br />
 
 <div>
-    @if (User.IsInRole("Employee"))
-{
-    <!-- Employee/Admin editing a customer -->
-    <a asp-controller="Employees"
-       asp-action="ManageCustomers"
-       class="btn btn-secondary">
-        Back to Customers
-    </a>
-}
-    @if (User.IsInRole("Admin"))
+    @* NEW LOGIC: Use ViewBag set in Controller to determine return context *@
+    @if (ViewBag.ReturnTo == "Employees")
     {
         <a asp-controller="Employees"
            asp-action="ManageEmployees"
@@ -85,8 +78,16 @@
             Back to Employees
         </a>
     }
+    else if (ViewBag.ReturnTo == "Customers")
+    {
+        <a asp-controller="Employees"
+           asp-action="ManageCustomers"
+           class="btn btn-secondary">
+            Back to Customers
+        </a>
+    }
     else
-{
-    <a asp-action="Index">Back to Account Details</a>
-}
+    {
+        <a asp-action="Index">Back to Account Details</a>
+    }
 </div>
