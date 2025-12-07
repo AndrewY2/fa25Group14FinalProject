@@ -404,9 +404,11 @@ namespace fa25Group14FinalProject.Controllers
                 .Where(od => od.BookID == bookId && od.Order.OrderStatus == OrderStatus.Ordered)
                 .ToListAsync();
 
+            var book = await _context.Books.FindAsync(bookId);
+
             if (!salesHistory.Any())
             {
-                return 0m;
+                return book.Price - book.Cost;
             }
 
             // Profit = Total Revenue (based on price at time of order) - Total Cost (based on WAC at time of order)
