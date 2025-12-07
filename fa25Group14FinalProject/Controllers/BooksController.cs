@@ -137,11 +137,44 @@ namespace fa25Group14FinalProject.Controllers
 
         // --- ADMIN FUNCTIONALITY (CREATE/EDIT) ---
 
+        // Inside your BooksController.cs
+
         // GET: Books/Create
-        [Authorize(Roles = "Admin")] // Only Admins can manage books
-        public IActionResult Create()
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Create()
         {
+            // --- 1. Unique Book Number Calculation ---
+            // Unique numbers start at 222001. Seed data runs from 222001-222300[cite: 299].
+                        // The next book added MUST be 222301.
+
+            const int LastSeedBookNumber = 222300;
+            int nextBookNumber = LastSeedBookNumber;
+
+            try
+            {
+                // Check if there are any books in the database to calculate the max number
+                if (await _context.Books.AnyAsync())
+                {
+                    int maxBookNumber = await _context.Books.MaxAsync(b => b.BookNumber);
+                    // We use Math.Max to ensure we don't start counting backwards if the seed data 
+                    // has a higher number than manually entered books (though unlikely).
+                    nextBookNumber = Math.Max(maxBookNumber, LastSeedBookNumber);
+                }
+
+                // Store the calculated next number (current max + 1)
+                ViewBag.NextBookNumber = nextBookNumber + 1;
+            }
+            catch (Exception ex)
+            {
+                // If the database connection or query fails, the ViewBag remains null or you can set a flag
+                // Log the exception (ex) here for debugging purposes.
+                ViewBag.NextBookNumber = null; // Forces the error message in the view
+            }
+
+            // --- 2. Genre List for Dropdown ---
+            // Assuming GetAllGenres() returns an appropriate SelectList
             ViewBag.AllGenres = GetAllGenres();
+
             return View();
         }
 
@@ -149,27 +182,63 @@ namespace fa25Group14FinalProject.Controllers
         [HttpPost]
         [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("BookID,BookNumber,Title,Description,Price,Cost,PublishDate,InventoryQuantity,ReorderPoint,Authors,BookStatus,GenreID")] Book book)
+        public async Task<IActionResult> Create(Book book)
         {
-            if (ModelState.IsValid)
-            {
-                // Ensure Book cost must be greater than zero [cite: 346]
-                if (book.Cost <= 0)
-                {
-                    ModelState.AddModelError("Cost", "Book cost must be greater than zero.");
-                    ViewBag.AllGenres = GetAllGenres();
-                    return View(book);
-                }
+            // The Admin is never allowed to set the InventoryQuantity directly during creation.
+            // It must start at 0 until an order is received.
+            book.InventoryQuantity = 0;
 
-                _context.Add(book);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+            // --- 1. Unique Book Number Assignment Logic ---
+            // The next book added MUST be 222301[cite: 299].
+
+            const int LastSeedBookNumber = 222300;
+            int nextBookNumber = LastSeedBookNumber;
+
+            // Find the current highest BookNumber in the database
+            if (_context.Books.Any())
+            {
+                int maxBookNumber = await _context.Books.MaxAsync(b => b.BookNumber);
+                // Ensure we start counting from where the seed data ended (222300)
+                nextBookNumber = Math.Max(maxBookNumber, LastSeedBookNumber);
             }
 
+            // *** FIX: Assign the calculated number to the book object being saved ***
+            book.BookNumber = nextBookNumber + 1;
+
+            // --- 2. Validation and Save Logic ---
+
+            // Validate Book Cost
+             if (book.Cost <= 0) // Requirement: Book costs must be greater than zero[cite: 346].
+            {
+                ModelState.AddModelError("Cost", "Book cost must be greater than zero.");
+            }
+
+            // Check if the GenreID is valid (Assuming GenreID field is required)
+            if (book.GenreID == 0)
+            {
+                ModelState.AddModelError("GenreID", "Please select or create a genre for the book.");
+            }
+
+            if (ModelState.IsValid)
+            {
+                _context.Add(book);
+                await _context.SaveChangesAsync();
+
+                // --- 3. Redirect to Procurement ---
+                // Once a new title has been added, the admin can order copies of the book[cite: 296].
+
+                TempData["SuccessMessage"] = $"Book '{book.Title}' created successfully with Unique Number {book.BookNumber}. You must now order initial copies.";
+
+                // Redirect to the OrderBook action in the Reorders controller for manual order placement
+                return RedirectToAction("OrderBook", "Reorders", new { id = book.BookID });
+            }
+
+            // If ModelState is invalid (error path):
+            // We must pass the calculated next number back to the view for display (even though it won't be saved)
+            ViewBag.NextBookNumber = book.BookNumber; // Use the calculated number for the display
             ViewBag.AllGenres = GetAllGenres();
             return View(book);
         }
-
         // GET: Books/Edit/5
         [Authorize(Roles = "Admin")] // Only Admins can edit books
         public async Task<IActionResult> Edit(int? id)

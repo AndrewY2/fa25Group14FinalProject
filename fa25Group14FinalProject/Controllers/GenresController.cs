@@ -28,38 +28,58 @@ namespace fa25Group14FinalProject.Controllers
         }
 
         // GET: Genres/Create
-        public IActionResult Create(int? bookId)
+        public IActionResult Create(string returnContext)
         {
-            ViewBag.ReturnBookId = bookId;
+            ViewBag.ReturnContext = returnContext; // Pass the context string to the view
             return View();
         }
 
         // POST: Genres/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("GenreID,GenreName")] Genre genre, int? bookId)
+        public async Task<IActionResult> Create([Bind("GenreID,GenreName")] Genre genre, string returnContext)
         {
+            // The bookId parameter has been replaced with the string returnContext
+
             if (ModelState.IsValid)
             {
                 // Check if genre name already exists (case-insensitive)
                 var exists = await _context.Genres.AnyAsync(g => g.GenreName.ToLower() == genre.GenreName.ToLower());
+
                 if (exists)
                 {
                     ModelState.AddModelError("GenreName", "A genre with this name already exists.");
-                    ViewBag.ReturnBookId = bookId;
+                    // Must reload the return context here for the view
+                    ViewBag.ReturnContext = returnContext;
                     return View(genre);
                 }
 
                 _context.Add(genre);
                 await _context.SaveChangesAsync();
                 TempData["SuccessMessage"] = "Genre created successfully.";
-                if (bookId.HasValue)
+
+                // --- REVISED REDIRECTION LOGIC ---
+
+                // 1. Check for redirection back to the Books/Create page
+                if (returnContext == "BooksCreate")
                 {
-                    return RedirectToAction("Edit", "Books", new { id = bookId.Value });
+                    // Redirect back to Books/Create so the Admin can select the new genre
+                    return RedirectToAction("Create", "Books");
                 }
+
+                // 2. Check for redirection back to a Books/Edit page (if an existing BookID was passed)
+                if (int.TryParse(returnContext, out int existingBookId))
+                {
+                    // Redirect back to Books/Edit using the parsed BookID
+                    return RedirectToAction("Edit", "Books", new { id = existingBookId });
+                }
+
+                // 3. Default: Redirect to the Genres Index page
                 return RedirectToAction(nameof(Index));
             }
-            ViewBag.ReturnBookId = bookId;
+
+            // If ModelState is invalid, reload the return context and return to the view
+            ViewBag.ReturnContext = returnContext;
             return View(genre);
         }
     }

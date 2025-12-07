@@ -1,6 +1,8 @@
 @model fa25Group14FinalProject.Models.Book
 @{
     ViewData["Title"] = "Create Book";
+    // Retrieve the calculated number. If ViewBag is null, this defaults to the descriptive text.
+    string nextBookNumber = ViewBag.NextBookNumber != null ? ViewBag.NextBookNumber.ToString() : "Error: Cannot calculate number.";
 }
 
 <h1>Create New Book</h1>
@@ -12,26 +14,30 @@
         <form asp-action="Create">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-            @* 1. Title (Replaces Name) *@
+            @* 1. Title *@
             <div class="form-group">
                 <label asp-for="Title" class="control-label"></label>
                 <input asp-for="Title" class="form-control" />
                 <span asp-validation-for="Title" class="text-danger"></span>
             </div>
 
-            @* 2. Authors (NEW FIELD) *@
+            @* 2. Authors *@
             <div class="form-group">
                 <label asp-for="Authors" class="control-label"></label>
                 <input asp-for="Authors" class="form-control" />
                 <span asp-validation-for="Authors" class="text-danger"></span>
             </div>
 
-            @* 3. Unique Number (NEW FIELD - Admin should be prompted) *@
-            @* Note: If unique number is auto-generated, remove this field and let controller handle it. *@
+            @* 3. Unique Number (Auto-Generated - Display Actual Potential Value) *@
             <div class="form-group">
-                <label asp-for="BookNumber" class="control-label"></label>
-                <input asp-for="BookNumber" class="form-control" readonly />
+                <label asp-for="BookNumber" class="control-label">Unique Number (Auto-Generated)</label>
+
+                <input value="@nextBookNumber" class="form-control" readonly />
                 <span asp-validation-for="BookNumber" class="text-danger"></span>
+                @if (ViewBag.NextBookNumber == null)
+                {
+                    <small class="text-danger">Error: Could not calculate next unique number. Check database connection in controller.</small>
+                }
             </div>
 
             @* 4. Description *@
@@ -48,54 +54,54 @@
                 <span asp-validation-for="Price" class="text-danger"></span>
             </div>
 
-            @* 6. Cost (Weighted Average Cost) - NEW FIELD *@
+            @* 6. Cost (Weighted Average Cost / Last Price Paid) *@
             <div class="form-group">
                 <label asp-for="Cost" class="control-label"></label>
                 <input asp-for="Cost" class="form-control" />
                 <span asp-validation-for="Cost" class="text-danger"></span>
             </div>
 
-            @* 7. Publication Date (NEW FIELD) *@
+            @* 7. Publication Date *@
             <div class="form-group">
                 <label asp-for="PublishDate" class="control-label"></label>
-                <input asp-for="PublishDate" class="form-control" />
+                <input asp-for="PublishDate" class="form-control" type="date" />
                 <span asp-validation-for="PublishDate" class="text-danger"></span>
             </div>
 
-            @* 8. Genre Selection (Replaces ProductType) *@
+            @* 8. Genre Selection and Add New Link *@
             <div class="form-group">
                 <label asp-for="GenreID" class="control-label">Genre</label>
                 <select asp-for="GenreID" class="form-control" asp-items="@ViewBag.AllGenres">
                     <option value="">Select a Genre</option>
                 </select>
                 <span asp-validation-for="GenreID" class="text-danger"></span>
+
+                <a asp-controller="Genres" asp-action="Create" asp-route-returnContext="BooksCreate" class="btn btn-sm btn-outline-info mt-3">Add New Genre</a>
             </div>
 
-            @* 9. Inventory Quantity (NEW FIELD) *@
-            <div class="form-group">
+            @* 9. Inventory Quantity (Hidden - Set to 0 by controller and ordered later) *@
+            <div class="form-group" style="display:none;">
                 <label asp-for="InventoryQuantity" class="control-label"></label>
-                <input asp-for="InventoryQuantity" class="form-control" />
+                <input asp-for="InventoryQuantity" class="form-control" value="0" readonly />
                 <span asp-validation-for="InventoryQuantity" class="text-danger"></span>
             </div>
 
-            @* 10. Reorder Point (NEW FIELD) *@
+            @* 10. Reorder Point *@
             <div class="form-group">
                 <label asp-for="ReorderPoint" class="control-label"></label>
                 <input asp-for="ReorderPoint" class="form-control" />
                 <span asp-validation-for="ReorderPoint" class="text-danger"></span>
             </div>
 
-            @* 11. Book Status (Discontinued) - NEW FIELD *@
-            <div class="form-group form-check">
+            @* 11. Book Status (Hidden) *@
+            <div class="form-group form-check" style="display:none;">
                 <label class="form-check-label">
-                    <input class="form-check-input" asp-for="BookStatus" /> @Html.DisplayNameFor(model => model.BookStatus)
+                    <input class="form-check-input" asp-for="BookStatus" checked /> @Html.DisplayNameFor(model => model.BookStatus)
                 </label>
             </div>
 
-            @* REMOVED: Suppliers dropdown - Obsolete M:M relationship *@
-
             <div class="form-group">
-                <input type="submit" value="Create Book" class="btn btn-primary" />
+                <input type="submit" value="Create Book" class="btn btn-primary mt-3" />
             </div>
         </form>
     </div>
@@ -104,5 +110,3 @@
 <div>
     <a asp-action="Index">Back to List</a>
 </div>
-
-@* The @section Scripts { ... } block is intentionally omitted to avoid the previous error. *@

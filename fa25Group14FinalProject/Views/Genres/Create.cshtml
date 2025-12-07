@@ -2,6 +2,9 @@
 
 @{
     ViewData["Title"] = "Add a Genre";
+    // NOTE: The GET action in GenresController should now set ViewBag.ReturnContext
+    // based on the incoming query parameter (e.g., "BooksCreate" or a BookID).
+    string returnContext = ViewBag.ReturnContext as string;
 }
 
 <h4>Add a new Genre</h4>
@@ -10,18 +13,27 @@
     <div class="col-md-4">
         <form asp-action="Create">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input type="hidden" name="bookId" value="@ViewBag.ReturnBookId" />
+
+
+            <input type="hidden" name="returnContext" value="@returnContext" />
 
             <div class="form-group">
                 <label asp-for="GenreName" class="control-label"></label>
                 <input asp-for="GenreName" class="form-control" />
                 <span asp-validation-for="GenreName" class="text-danger"></span>
             </div>
+
             <div class="form-group">
                 <input type="submit" value="Create and return to book" class="btn btn-primary" /> |
-                @if (ViewBag.ReturnBookId != null)
+
+
+                @if (returnContext == "BooksCreate")
                 {
-                    <a asp-controller="Books" asp-action="Edit" asp-route-id="@ViewBag.ReturnBookId" class="btn btn-secondary">Back to Book</a>
+                    <a asp-controller="Books" asp-action="Create" class="btn btn-secondary">Back to Book Creation</a>
+                }
+                else if (int.TryParse(returnContext, out int bookIdValue)) // Check if it's an existing BookID
+                {
+                    <a asp-controller="Books" asp-action="Edit" asp-route-id="@bookIdValue" class="btn btn-secondary">Back to Edit Book</a>
                 }
                 else
                 {
@@ -31,4 +43,3 @@
         </form>
     </div>
 </div>
-
