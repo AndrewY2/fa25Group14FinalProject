@@ -26,11 +26,11 @@ namespace fa25Group14FinalProject.Controllers
         // GET: Books - Accessible by everyone
         public async Task<IActionResult> Index()
         {
-            // Include Genre AND Reviews so we can compute ratings in the view
+            // The Index view is often just the initial view, leading to search.
             var books = await _context.Books
-                                      .Include(b => b.Genre)
-                                      .Include(b => b.Reviews)
-                                      .ToListAsync();
+                                         .Include(b => b.Genre)
+                                         .Include(b => b.Reviews)
+                                         .ToListAsync();
 
             ViewBag.RecordCount = books.Count;
             ViewBag.AllBooks = books.Count;
@@ -49,13 +49,16 @@ namespace fa25Group14FinalProject.Controllers
 
             // Load all books + reviews for initial list
             List<Book> allBooks = _context.Books
-                        .Include(b => b.Genre)
-                        .Include(b => b.Reviews)
-                        .ToList();
+                                        .Include(b => b.Genre)
+                                        .Include(b => b.Reviews)
+                                        .ToList();
 
             ViewBag.InitialBookList = allBooks;
             ViewBag.AllBooks = allBooks.Count;
             ViewBag.SelectedBooks = allBooks.Count;
+
+            // Set the default search mode for the view (used in the partial view)
+            ViewBag.SearchMode = User.IsInRole("Admin") ? "admin" : (User.IsInRole("Employee") ? "employee" : "customer");
 
             return View(svm);
         }
@@ -65,9 +68,9 @@ namespace fa25Group14FinalProject.Controllers
         {
             // This means "show ALL books"
             var books = _context.Books
-                                .Include(b => b.Genre)
-                                .Include(b => b.Reviews)
-                                .ToList();
+                                 .Include(b => b.Genre)
+                                 .Include(b => b.Reviews)
+                                 .ToList();
 
             ViewBag.AllBooks = books.Count;
             ViewBag.SelectedBooks = books.Count;
@@ -77,6 +80,7 @@ namespace fa25Group14FinalProject.Controllers
             SelectList genreSelectList = new SelectList(_context.Genres, "GenreID", "GenreName");
             ViewBag.GenreSelectList = genreSelectList;
             ViewBag.InitialBookList = books;
+            ViewBag.SearchMode = User.IsInRole("Admin") ? "admin" : (User.IsInRole("Employee") ? "employee" : "customer");
 
             return View("Search", svm);
         }
@@ -93,6 +97,7 @@ namespace fa25Group14FinalProject.Controllers
             ViewBag.InitialBookList = SelectedBooks;
             ViewBag.AllBooks = _context.Books.Count();
             ViewBag.SelectedBooks = SelectedBooks.Count();
+            ViewBag.SearchMode = User.IsInRole("Admin") ? "admin" : (User.IsInRole("Employee") ? "employee" : "customer");
 
             return View("Search", svm);
         }
@@ -109,7 +114,8 @@ namespace fa25Group14FinalProject.Controllers
             // Include Genre and Reviews (only approved ones for public view)
             var book = await _context.Books
                 .Include(b => b.Genre)
-                .Include(b => b.Reviews.Where(r => r.IsApproved == true))
+                // Note: Filtering on Include is functional but filtering the collection after Fetch is safer.
+                .Include(b => b.Reviews)
                 .FirstOrDefaultAsync(m => m.BookID == id);
 
             if (book == null)
@@ -117,14 +123,14 @@ namespace fa25Group14FinalProject.Controllers
                 return NotFound();
             }
 
-            // We now compute the average rating in the view itself,
-            // so ViewBag.AverageRating is no longer strictly necessary.
-            // (Leaving this in case something else still uses it.)
+            // --- Rating Calculation Fix ---
             var approvedReviews = book.Reviews.Where(r => r.IsApproved == true).ToList();
 
             if (approvedReviews.Any())
             {
                 decimal averageRating = (decimal)approvedReviews.Average(r => r.Rating);
+
+                // Fix: Explicitly round to 1 decimal place .
                 ViewBag.AverageRating = Math.Round(averageRating, 1);
             }
             else
@@ -137,16 +143,11 @@ namespace fa25Group14FinalProject.Controllers
 
         // --- ADMIN FUNCTIONALITY (CREATE/EDIT) ---
 
-        // Inside your BooksController.cs
-
         // GET: Books/Create
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create()
         {
-            // --- 1. Unique Book Number Calculation ---
-            // Unique numbers start at 222001. Seed data runs from 222001-222300[cite: 299].
-                        // The next book added MUST be 222301.
-
+            // --- 1. Unique Book Number Calculation (for display) ---
             const int LastSeedBookNumber = 222300;
             int nextBookNumber = LastSeedBookNumber;
 
@@ -156,23 +157,20 @@ namespace fa25Group14FinalProject.Controllers
                 if (await _context.Books.AnyAsync())
                 {
                     int maxBookNumber = await _context.Books.MaxAsync(b => b.BookNumber);
-                    // We use Math.Max to ensure we don't start counting backwards if the seed data 
-                    // has a higher number than manually entered books (though unlikely).
+                    // Ensure we start counting from where the seed data ended (222300)
                     nextBookNumber = Math.Max(maxBookNumber, LastSeedBookNumber);
                 }
 
                 // Store the calculated next number (current max + 1)
                 ViewBag.NextBookNumber = nextBookNumber + 1;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                // If the database connection or query fails, the ViewBag remains null or you can set a flag
-                // Log the exception (ex) here for debugging purposes.
-                ViewBag.NextBookNumber = null; // Forces the error message in the view
+                // If the database connection or query fails, set to null to trigger error message in view
+                ViewBag.NextBookNumber = null;
             }
 
             // --- 2. Genre List for Dropdown ---
-            // Assuming GetAllGenres() returns an appropriate SelectList
             ViewBag.AllGenres = GetAllGenres();
 
             return View();
@@ -182,15 +180,13 @@ namespace fa25Group14FinalProject.Controllers
         [HttpPost]
         [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
+        // Note: BookNumber and InventoryQuantity removed from Bind attribute (handled internally)
         public async Task<IActionResult> Create(Book book)
         {
-            // The Admin is never allowed to set the InventoryQuantity directly during creation.
-            // It must start at 0 until an order is received.
+            // The InventoryQuantity must start at 0 until an order is received.
             book.InventoryQuantity = 0;
 
             // --- 1. Unique Book Number Assignment Logic ---
-            // The next book added MUST be 222301[cite: 299].
-
             const int LastSeedBookNumber = 222300;
             int nextBookNumber = LastSeedBookNumber;
 
@@ -198,12 +194,12 @@ namespace fa25Group14FinalProject.Controllers
             if (_context.Books.Any())
             {
                 int maxBookNumber = await _context.Books.MaxAsync(b => b.BookNumber);
-                // Ensure we start counting from where the seed data ended (222300)
                 nextBookNumber = Math.Max(maxBookNumber, LastSeedBookNumber);
             }
 
-            // *** FIX: Assign the calculated number to the book object being saved ***
+            // ASSIGN the calculated number to the book object being saved (current max + 1)
             book.BookNumber = nextBookNumber + 1;
+
 
             // --- 2. Validation and Save Logic ---
 
@@ -225,7 +221,7 @@ namespace fa25Group14FinalProject.Controllers
                 await _context.SaveChangesAsync();
 
                 // --- 3. Redirect to Procurement ---
-                // Once a new title has been added, the admin can order copies of the book[cite: 296].
+                // Once a new title has been added, the admin can order copies of the book.
 
                 TempData["SuccessMessage"] = $"Book '{book.Title}' created successfully with Unique Number {book.BookNumber}. You must now order initial copies.";
 
@@ -239,6 +235,7 @@ namespace fa25Group14FinalProject.Controllers
             ViewBag.AllGenres = GetAllGenres();
             return View(book);
         }
+
         // GET: Books/Edit/5
         [Authorize(Roles = "Admin")] // Only Admins can edit books
         public async Task<IActionResult> Edit(int? id)
@@ -249,8 +246,8 @@ namespace fa25Group14FinalProject.Controllers
             }
 
             Book book = await _context.Books
-                                      .Include(b => b.Genre)
-                                      .FirstOrDefaultAsync(b => b.BookID == id);
+                                        .Include(b => b.Genre)
+                                        .FirstOrDefaultAsync(b => b.BookID == id);
 
             if (book == null)
             {
@@ -267,17 +264,18 @@ namespace fa25Group14FinalProject.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(
             int id,
-            // 🔹 NOTE: InventoryQuantity REMOVED from the Bind list
-            [Bind("BookID,BookNumber,Title,Description,Price,Cost,PublishDate,ReorderPoint,Authors,BookStatus,GenreID")]
-    Book book)
+            // 🔹 NOTE: BookNumber and InventoryQuantity REMOVED from the Bind list
+            [Bind("BookID,Title,Description,Price,Cost,PublishDate,ReorderPoint,Authors,BookStatus,GenreID")]
+        Book book)
         {
             if (id != book.BookID)
             {
                 return NotFound();
             }
 
-            // Fetch the book from the DB to preserve fields not allowed to be edited
-            Book bookToUpdate = _context.Books.FirstOrDefault(b => b.BookID == book.BookID);
+            // Fetch the book from the DB to preserve fields not allowed to be edited (Unique #, Inventory)
+            // We use AsNoTracking() to prevent tracking issues when we fetch bookToUpdate and then update it.
+            Book bookToUpdate = await _context.Books.AsNoTracking().FirstOrDefaultAsync(b => b.BookID == book.BookID);
 
             if (bookToUpdate == null)
             {
@@ -298,14 +296,17 @@ namespace fa25Group14FinalProject.Controllers
                 bookToUpdate.Price = book.Price;
                 bookToUpdate.Cost = book.Cost;
                 bookToUpdate.PublishDate = book.PublishDate;
-                // 🔸 DO NOT TOUCH InventoryQuantity here – it is maintained via reorders
                 bookToUpdate.ReorderPoint = book.ReorderPoint;
                 bookToUpdate.Authors = book.Authors;
                 bookToUpdate.BookStatus = book.BookStatus;
                 bookToUpdate.GenreID = book.GenreID;
 
+                // 🔸 Preserve Non-Editable Fields by attaching the original entity and updating specific properties
+                // This is generally done implicitly, but if tracking issues arise, you can explicitly detach/attach or manually set.
+
                 try
                 {
+                    // Attach and update the entity with only the properties that changed
                     _context.Update(bookToUpdate);
                     await _context.SaveChangesAsync();
 
@@ -323,7 +324,7 @@ namespace fa25Group14FinalProject.Controllers
                     }
                 }
 
-                // ✅ After saving, go back to the searchable list, not the plain index
+                // ✅ After saving, go back to the searchable list
                 return RedirectToAction("Search", "Books");
             }
 
@@ -335,12 +336,11 @@ namespace fa25Group14FinalProject.Controllers
 
         // --- HELPER METHODS ---
 
-        // inside BooksController
         private IQueryable<Book> BuildBookSearchQuery(SearchViewModel svm)
         {
             var query = _context.Books
-                                .Include(b => b.Reviews)
-                                .AsQueryable();
+                                 .Include(b => b.Reviews)
+                                 .AsQueryable();
 
             if (!String.IsNullOrEmpty(svm.Title))
             {
@@ -352,20 +352,27 @@ namespace fa25Group14FinalProject.Controllers
                 query = query.Where(b => b.Authors.Contains(svm.Authors));
             }
 
+            // Search by unique number (used instead of ISBN)
             if (svm.BookNumber.HasValue)
             {
                 query = query.Where(b => b.BookNumber == svm.BookNumber);
             }
 
+            // Search by genre ID
             if (svm.GenreID.HasValue)
             {
                 query = query.Where(b => b.GenreID == svm.GenreID);
             }
 
+            // Filter to see only items in stock [cite: 96]
             if (svm.InStockOnly == true)
             {
                 query = query.Where(b => b.InventoryQuantity > 0);
             }
+
+            // Discontinued books are always shown unless filtered
+            // Discontinued books still show up in search results [cite: 302-303]
+            // Your current logic is correct as it doesn't filter by BookStatus.
 
             switch (svm.SortOption)
             {

@@ -24,12 +24,12 @@
             </div>
 
             <div class="form-group">
-                <input type="submit" value="Create and return to book" class="btn btn-primary" /> |
+                <input type="submit" value="Create and return to book" class="btn btn-primary mt-3" /> |
 
 
                 @if (returnContext == "BooksCreate")
                 {
-                    <a asp-controller="Books" asp-action="Create" class="btn btn-secondary">Back to Book Creation</a>
+                    <a asp-controller="Books" asp-action="Create" class="btn btn-secondary mt-3">Back to Book Creation</a>
                 }
                 else if (int.TryParse(returnContext, out int bookIdValue)) // Check if it's an existing BookID
                 {
