@@ -105,24 +105,21 @@ namespace fa25Group14FinalProject.Controllers
         // GET: Employees/ManageCustomers
         public async Task<IActionResult> ManageCustomers()
         {
-            // Only fetch users who are customers
-            var customerRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "Customer");
-            if (customerRole == null)
-            {
-                TempData["ErrorMessage"] = "The 'Customer' role does not exist.";
-                return RedirectToAction(nameof(Index));
-            }
+            // The old logic of checking for the role object is generally unnecessary
+            // if you rely on the string role name, and the role should always exist.
+            // But we will keep it simple and directly use UserManager.
 
-            // You would typically use UserManager.GetUsersInRoleAsync("Customer") here
-            // For simple demonstration: fetch all users and let the view filter/link to roles.
-            var allUsers = await _context.Users
-                .OrderBy(u => u.LastName)
-                .ToListAsync();
+            // FIX: Use the UserManager to fetch only users in the "Customer" role.
+            var customerUsers = await _userManager.GetUsersInRoleAsync("Customer");
 
-            // Note: You need links here to AccountController actions (e.g., Register for 'Create')
-            // and an action below for Disable/Enable.
+            // Sort the retrieved list of customers
+            var sortedCustomers = customerUsers
+            .OrderBy(u => u.LastName)
+            .ThenBy(u => u.FirstName)
+            .ToList();
 
-            return View(allUsers);
+            // Return the filtered and sorted list of *customers* to the view
+            return View(sortedCustomers);
         }
 
         // POST: Employees/ToggleAccountStatus/5
