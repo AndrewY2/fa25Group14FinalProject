@@ -249,8 +249,8 @@ namespace fa25Group14FinalProject.Controllers
             }
 
             Book book = await _context.Books
-                                     .Include(b => b.Genre)
-                                     .FirstOrDefaultAsync(b => b.BookID == id);
+                                      .Include(b => b.Genre)
+                                      .FirstOrDefaultAsync(b => b.BookID == id);
 
             if (book == null)
             {
@@ -258,7 +258,6 @@ namespace fa25Group14FinalProject.Controllers
             }
 
             ViewBag.AllGenres = GetAllGenres(book.GenreID);
-
             return View(book);
         }
 
@@ -266,7 +265,11 @@ namespace fa25Group14FinalProject.Controllers
         [HttpPost]
         [Authorize(Roles = "Admin")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("BookID,BookNumber,Title,Description,Price,Cost,PublishDate,InventoryQuantity,ReorderPoint,Authors,BookStatus,GenreID")] Book book)
+        public async Task<IActionResult> Edit(
+            int id,
+            // 🔹 NOTE: InventoryQuantity REMOVED from the Bind list
+            [Bind("BookID,BookNumber,Title,Description,Price,Cost,PublishDate,ReorderPoint,Authors,BookStatus,GenreID")]
+    Book book)
         {
             if (id != book.BookID)
             {
@@ -289,12 +292,13 @@ namespace fa25Group14FinalProject.Controllers
 
             if (ModelState.IsValid)
             {
+                // 🔹 Update only the editable fields
                 bookToUpdate.Title = book.Title;
                 bookToUpdate.Description = book.Description;
                 bookToUpdate.Price = book.Price;
                 bookToUpdate.Cost = book.Cost;
                 bookToUpdate.PublishDate = book.PublishDate;
-                bookToUpdate.InventoryQuantity = book.InventoryQuantity;
+                // 🔸 DO NOT TOUCH InventoryQuantity here – it is maintained via reorders
                 bookToUpdate.ReorderPoint = book.ReorderPoint;
                 bookToUpdate.Authors = book.Authors;
                 bookToUpdate.BookStatus = book.BookStatus;
@@ -304,6 +308,8 @@ namespace fa25Group14FinalProject.Controllers
                 {
                     _context.Update(bookToUpdate);
                     await _context.SaveChangesAsync();
+
+                    TempData["Message"] = $"Book '{bookToUpdate.Title}' was successfully updated.";
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -316,12 +322,16 @@ namespace fa25Group14FinalProject.Controllers
                         throw;
                     }
                 }
-                return RedirectToAction(nameof(Index));
+
+                // ✅ After saving, go back to the searchable list, not the plain index
+                return RedirectToAction("Search", "Books");
             }
 
+            // If validation fails, rebuild dropdown and redisplay form
             ViewBag.AllGenres = GetAllGenres(book.GenreID);
             return View(book);
         }
+
 
         // --- HELPER METHODS ---
 

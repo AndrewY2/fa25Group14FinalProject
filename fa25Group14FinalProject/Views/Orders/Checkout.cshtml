@@ -4,7 +4,12 @@
 @{
     ViewData["Title"] = "Checkout";
     var cards = ViewBag.AllCards as SelectList;
+
+    // values only populated when user clicks "Apply Coupon"
+    decimal totalSavings = ViewBag.TotalSavings != null ? (decimal)ViewBag.TotalSavings : 0m;
+    string appliedCouponCode = ViewBag.AppliedCouponCode as string;
 }
+
 
 <h2>Checkout</h2>
 <hr />
@@ -175,14 +180,19 @@ else
                     </div>
                 </div>
 
-                @if (Model.DiscountAmount > 0)
+                @if (totalSavings > 0)
                 {
                     <p class="text-success mt-2">
-                        ✓ Coupon applied — you saved
-                        @String.Format("{0:C}", Model.DiscountAmount)
-                        on this order.
+                        ✓ Coupon applied
+                        @if (!String.IsNullOrWhiteSpace(appliedCouponCode))
+                        {
+                            @($"({appliedCouponCode}) ")
+                        }
+                        — you saved @totalSavings.ToString("C") on this order.
                     </p>
                 }
+
+
 
                 <small class="text-muted">
                     Shipping is $3.50 for the first book and $1.50 for each additional book.

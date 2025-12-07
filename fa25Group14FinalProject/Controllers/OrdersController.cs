@@ -44,12 +44,11 @@ namespace fa25Group14FinalProject.Controllers
                 .FirstOrDefault(o => o.CustomerID == userID && o.OrderStatus == OrderStatus.InCart);
         }
 
-        // Helper: Calculates shipping fee dynamically (using AdminSettings if available, or defaults)
+        // Helper: Calculates shipping fee dynamically
         private decimal CalculateShippingFee(int bookCount)
         {
             if (bookCount == 0) return 0.00m;
 
-            // (Shipping price is $3.50 for the first book, and $1.50 for each additional book. [cite: 246])
             decimal firstBookFee = 3.50m;
             decimal additionalBookFee = 1.50m;
 
@@ -118,9 +117,6 @@ namespace fa25Group14FinalProject.Controllers
         }
 
         // POST: Orders/Edit/5
-        // NOTE: Right now we are not actually changing any scalar properties on the order
-        // (the form only posts the hidden OrderID), so this simply validates access and
-        // returns to the Index.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id)
@@ -145,39 +141,35 @@ namespace fa25Group14FinalProject.Controllers
         {
             Order cart = GetCartForCheckout();
 
-            // Customers should not be able to check out if they have an empty shopping cart. [cite: 248]
             if (cart == null || !cart.OrderDetails.Any())
             {
                 TempData["ErrorMessage"] = "You cannot check out with an empty cart.";
-                return RedirectToAction("Index", "OrderDetails"); // Redirect to cart view
+                return RedirectToAction("Index", "OrderDetails");
             }
 
-            // Recalculate shipping and subtotal dynamically
             cart.ShippingFee = CalculateShippingFee(cart.OrderDetails.Sum(od => od.Quantity));
-
-            // Pass payment options to the view
             ViewBag.AllCards = GetCustomerCards();
 
             return View(cart);
         }
-        //perri added last string
+
+        //perri updated – single source of truth for coupon math + totals
         [HttpPost]
         [Authorize(Roles = "Customer")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> PlaceOrder(int SelectedCardID, string CouponCode, string submitAction)
         {
-            // Helpers required in this scope
             string currentUserID = GetUserID();
             Order cart = GetCartForCheckout();
 
-            // Re-validate for empty cart
-            if (cart == null || !cart.OrderDetails.Any())
+            // 0. Re-validate for empty cart
+            if (cart == null || cart.OrderDetails == null || !cart.OrderDetails.Any())
             {
                 TempData["ErrorMessage"] = "Cannot place order: your cart is empty.";
                 return RedirectToAction("Index", "OrderDetails");
             }
 
-            // --- Validate that the selected card belongs to this customer ---
+            // 1. Validate selected card belongs to this customer
             Card selectedCard = await _context.Cards
                 .FirstOrDefaultAsync(c => c.CardID == SelectedCardID && c.CustomerID == currentUserID);
 
@@ -186,15 +178,13 @@ namespace fa25Group14FinalProject.Controllers
                 ModelState.AddModelError("SelectedCardID", "Please select a valid payment card.");
             }
 
-            // --- 1. COUPON VALIDATION AND SINGLE-USE CHECK ---
+            // 2. Look up coupon (if provided) and enforce single-use-per-customer
             Coupon appliedCoupon = null;
-            decimal originalSubtotal = cart.Subtotal; // Subtotal before coupon
-            decimal subtotal = originalSubtotal;
 
             if (!string.IsNullOrWhiteSpace(CouponCode))
             {
-                // Find active coupon
-                appliedCoupon = await _context.Coupons.FirstOrDefaultAsync(c => c.CouponCode == CouponCode && c.Status == true);
+                appliedCoupon = await _context.Coupons
+                    .FirstOrDefaultAsync(c => c.CouponCode == CouponCode && c.Status == true);
 
                 if (appliedCoupon == null)
                 {
@@ -202,11 +192,10 @@ namespace fa25Group14FinalProject.Controllers
                 }
                 else
                 {
-                    // Has this customer used this coupon before? (Requirement 189)
                     bool alreadyUsed = await _context.Orders
                         .AnyAsync(o => o.CouponID == appliedCoupon.CouponID
-                                        && o.CustomerID == currentUserID
-                                        && o.OrderStatus != OrderStatus.InCart);
+                                       && o.CustomerID == currentUserID
+                                       && o.OrderStatus != OrderStatus.InCart);
 
                     if (alreadyUsed)
                     {
@@ -216,77 +205,79 @@ namespace fa25Group14FinalProject.Controllers
             }
             else
             {
-                // If the CouponCode is blank, ensure no ModelState error is associated with it.
+                // Make sure there is no leftover model error on CouponCode
                 if (ModelState.ContainsKey("CouponCode"))
                 {
                     ModelState.Remove("CouponCode");
                 }
             }
 
-            // If validation fails, reload the checkout view with errors
+            // If validation failed, redisplay Checkout with errors
             if (!ModelState.IsValid)
             {
                 ViewBag.AllCards = GetCustomerCards(SelectedCardID);
-                int totalBooksForShipping = cart.OrderDetails.Sum(od => od.Quantity);
-                cart.ShippingFee = CalculateShippingFee(totalBooksForShipping);
+
+                int booksForShipping = cart.OrderDetails.Sum(od => od.Quantity);
+                cart.ShippingFee = CalculateShippingFee(booksForShipping);
+
                 return View("Checkout", cart);
             }
 
-            // --- 2. FINAL CALCULATIONS & DISCOUNT APPLICATION ---
+            // 3. SINGLE SOURCE OF TRUTH: compute subtotal, shipping, discount, final total
 
-            // Calculate base shipping fee
+            decimal originalSubtotal = cart.Subtotal;                      // books only
             int totalBooks = cart.OrderDetails.Sum(od => od.Quantity);
-            decimal finalShipping = CalculateShippingFee(totalBooks);
+            decimal shippingFee = CalculateShippingFee(totalBooks);        // base shipping
+            decimal discountAmount = 0m;                                   // dollars off subtotal (RAW, not rounded)
+            decimal rawDiscount = 0m;
 
-            // Reset discount amount
-            cart.DiscountAmount = 0m;
-
-            // Apply coupon discount effects (Req. 184, 185)
             if (appliedCoupon != null)
             {
                 if (appliedCoupon.CouponType == CouponType.FreeShipping)
                 {
-                    // Check threshold condition
-                    if (appliedCoupon.FreeThreshold == 0 || originalSubtotal >= appliedCoupon.FreeThreshold)
+                    // Free shipping if threshold is 0 or subtotal meets threshold
+                    if (appliedCoupon.FreeThreshold == 0
+                        || originalSubtotal >= appliedCoupon.FreeThreshold)
                     {
-                        finalShipping = 0.00m; // Free Shipping Applied
+                        shippingFee = 0m;
                     }
                 }
-                else if (appliedCoupon.CouponType == CouponType.PercentOff && appliedCoupon.DiscountPercent.HasValue)
+                else if (appliedCoupon.CouponType == CouponType.PercentOff
+                         && appliedCoupon.DiscountPercent.HasValue)
                 {
-                    // Compute a dollar discount off the original subtotal
-                    decimal discount = originalSubtotal * (appliedCoupon.DiscountPercent.Value / 100.0m);
-                    cart.DiscountAmount = discount;
-                    subtotal = originalSubtotal - discount;
+                    // Percent off BOOK SUBTOTAL only.
+                    // IMPORTANT: keep RAW discount (e.g., 2.895) so final total rounds to 29.56
+                    rawDiscount = originalSubtotal * (appliedCoupon.DiscountPercent.Value / 100.0m);
+                    discountAmount = rawDiscount;
                 }
             }
-            // perri added
-            // --- 2b. If user clicked "Apply Coupon", just refresh Checkout with updated totals ---
+
+            // Persist these on the cart
+            cart.ShippingFee = shippingFee;
+            cart.DiscountAmount = discountAmount; // may have 3 decimal places, that's OK
+
+            // FINAL TOTAL uses RAW discount, then rounds the total (so 29.555 -> 29.56)
+            decimal finalTotal = originalSubtotal - discountAmount + shippingFee;
+            finalTotal = Math.Round(finalTotal, 2, MidpointRounding.AwayFromZero);
+
+            // 3b. If user clicked "Apply Coupon", just show updated totals – DO NOT place order
             if (submitAction == "apply")
             {
-                // Update the shipping fee on the cart for display
-                cart.ShippingFee = finalShipping;
-
-                // At this point cart.DiscountAmount has already been set (if a percent-off coupon was applied)
-                // and OrderTotal is computed from Subtotal, DiscountAmount, and ShippingFee.
-
-                // Rebuild dropdown with the previously selected card
                 ViewBag.AllCards = GetCustomerCards(SelectedCardID);
+                ViewBag.TotalSavings = (originalSubtotal + shippingFee) - finalTotal;
+                ViewBag.AppliedCouponCode = appliedCoupon?.CouponCode;
 
-                // Redisplay the Checkout page instead of placing the order
-                return View("Checkout", cart);
+                return View("Checkout", cart); // OrderStatus still InCart
             }
 
-            // --- 3. ORDER FINALIZATION & TRANSACTION ---
+            // 4. Finalize and SAVE the order (Place Order)
 
-            // Finalize Order Properties
             cart.OrderDate = DateTime.Now;
-            cart.OrderStatus = OrderStatus.Ordered; // Order is placed/shipped (Req. 263)
+            cart.OrderStatus = OrderStatus.Ordered;
             cart.CardID = selectedCard.CardID;
             cart.CouponID = appliedCoupon?.CouponID;
-            cart.ShippingFee = finalShipping;
 
-            // Decrease Inventory Quantity (Req. 271)
+            // Decrease inventory
             foreach (var od in cart.OrderDetails)
             {
                 Book book = await _context.Books.FindAsync(od.BookID);
@@ -297,21 +288,16 @@ namespace fa25Group14FinalProject.Controllers
                 }
             }
 
-            // Finalize and Save Order
             _context.Update(cart);
             await _context.SaveChangesAsync();
 
-            // --- 4. EMAIL CONFIRMATION (with recommendations) ---
-
-            // Load customer and a representative book for recommendations
+            // 5. Build confirmation email with the SAME numbers the site shows
             var customer = await _context.Users.FirstOrDefaultAsync(u => u.Id == cart.CustomerID);
             var purchasedBook = cart.OrderDetails.FirstOrDefault()?.Book;
 
-
-            // Build email body
             if (customer != null)
             {
-                var bodyBuilder = new System.Text.StringBuilder();
+                var bodyBuilder = new StringBuilder();
 
                 bodyBuilder.AppendLine($"Hi {customer.FirstName},");
                 bodyBuilder.AppendLine();
@@ -323,23 +309,21 @@ namespace fa25Group14FinalProject.Controllers
 
                 foreach (var od in cart.OrderDetails)
                 {
-                    // Make sure we include title and author in the email
                     bodyBuilder.AppendLine(
                         $"{od.ProductName} by {od.Book?.Authors} — Qty: {od.Quantity}, Price: {od.Price:C}");
                 }
 
                 bodyBuilder.AppendLine("------------------------------");
-                bodyBuilder.AppendLine($"Subtotal: {subtotal:C}");
-                bodyBuilder.AppendLine($"Shipping: {finalShipping:C}");
-                bodyBuilder.AppendLine($"Discount: {cart.DiscountAmount:C}");
-                bodyBuilder.AppendLine($"Total: {(subtotal + finalShipping):C}");
+                bodyBuilder.AppendLine($"Subtotal: {originalSubtotal:C}");
+                bodyBuilder.AppendLine($"Shipping: {shippingFee:C}");
+                bodyBuilder.AppendLine($"Discount: {discountAmount:C}");
+                bodyBuilder.AppendLine($"Total: {finalTotal:C}");
                 bodyBuilder.AppendLine();
 
-                // Recommendations (Required to appear in confirmation email)
+                // Recommendations in email
                 if (purchasedBook != null)
                 {
                     var recommendations = await GetRecommendationsForOrder(cart.CustomerID, purchasedBook);
-
                     if (recommendations != null && recommendations.Any())
                     {
                         bodyBuilder.AppendLine("You might also enjoy:");
@@ -358,8 +342,6 @@ namespace fa25Group14FinalProject.Controllers
                 await EmailUtils.SendEmailAsync(customer.Email, subject, bodyBuilder.ToString());
             }
 
-            // --- 5. CONFIRMATION & REDIRECTION ---
-
             TempData["OrderSuccessMessage"] = $"Order #{cart.OrderID} successfully placed!";
             return RedirectToAction("Confirmed", new { id = cart.OrderID });
         }
@@ -371,31 +353,26 @@ namespace fa25Group14FinalProject.Controllers
             if (id == null) return NotFound();
 
             var order = await _context.Orders
-                .Include(o => o.OrderDetails).ThenInclude(od => od.Book).ThenInclude(b => b.Genre) // Include Genre for recommendation logic
-                .Include(o => o.OrderDetails).ThenInclude(od => od.Book).ThenInclude(b => b.Reviews) // Include Reviews for rating
+                .Include(o => o.OrderDetails).ThenInclude(od => od.Book).ThenInclude(b => b.Genre)
+                .Include(o => o.OrderDetails).ThenInclude(od => od.Book).ThenInclude(b => b.Reviews)
                 .Include(o => o.Card)
                 .Include(o => o.Coupon)
                 .FirstOrDefaultAsync(m => m.OrderID == id);
 
             if (order == null || order.CustomerID != GetUserID()) return Forbid();
 
-            // Use the first book in the order for recommendations (Req. 125)
             var purchasedBook = order.OrderDetails.FirstOrDefault()?.Book;
 
             if (purchasedBook != null)
             {
-                // Call the new recommendation method
                 ViewBag.Recommendations = await GetRecommendationsForOrder(order.CustomerID, purchasedBook);
             }
 
             return View(order);
         }
 
-
         // --- HELPER METHODS ---
 
-        // Helper to determine whether the authorsField contains the targetAuthor.
-        // Handles lists like "A, B & C", extra spaces, case, and simple normalization.
         private bool AuthorMatches(string authorsField, string targetAuthor)
         {
             if (string.IsNullOrWhiteSpace(authorsField) || string.IsNullOrWhiteSpace(targetAuthor))
@@ -404,11 +381,8 @@ namespace fa25Group14FinalProject.Controllers
             string Normalize(string s) => s?.Normalize(NormalizationForm.FormKC).Trim().ToLowerInvariant() ?? "";
 
             var normalizedTarget = Normalize(targetAuthor);
-
-            // Common separators and the word " and "
             var separators = new[] { ",", ";", "&", "/", " and " };
 
-            // Replace separators with a single comma then split
             string unified = authorsField;
             foreach (var sep in separators)
             {
@@ -433,7 +407,6 @@ namespace fa25Group14FinalProject.Controllers
             int targetGenreID = purchasedBook.GenreID;
             string targetAuthor = purchasedBook.Authors?.Trim() ?? "";
 
-            // Get IDs of all books already purchased
             var purchasedBookIDs = await _context.Orders
                 .Where(o => o.CustomerID == customerID && o.OrderStatus != OrderStatus.InCart)
                 .SelectMany(o => o.OrderDetails)
@@ -441,7 +414,6 @@ namespace fa25Group14FinalProject.Controllers
                 .Distinct()
                 .ToListAsync();
 
-            // Base query: exclude purchased books & purchasedBook itself
             var availableBooks = await _context.Books
                 .Include(b => b.Genre)
                 .Include(b => b.Reviews)
@@ -451,7 +423,7 @@ namespace fa25Group14FinalProject.Controllers
             var recommendedIds = new HashSet<int>();
             var usedAuthors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            // --- 1) Same Author, Same Genre ---
+            // 1) Same Author, Same Genre
             var sameAuthorSameGenre = availableBooks
                 .Where(b => b.GenreID == targetGenreID && AuthorMatches(b.Authors ?? "", targetAuthor))
                 .OrderByDescending(b => b.Rating ?? 0)
@@ -465,11 +437,10 @@ namespace fa25Group14FinalProject.Controllers
                 usedAuthors.Add((authorRec.Authors ?? "").Trim());
             }
 
-            // Determine how many highly-rated picks needed
             int booksNeeded = maxRecommendations - recommendations.Count;
             int targetHighlyRatedCount = (recommendations.Count == 0) ? 3 : 2;
 
-            // --- 2) Highly-Rated Same Genre (distinct authors) ---
+            // 2) Highly-Rated Same Genre (distinct authors)
             var highlyRated = availableBooks
                 .Where(b => b.GenreID == targetGenreID && (b.Rating ?? 0) >= 4.0 && !recommendedIds.Contains(b.BookID))
                 .OrderByDescending(b => b.Rating ?? 0)
@@ -487,12 +458,11 @@ namespace fa25Group14FinalProject.Controllers
                     usedAuthors.Add(authorKey);
                 }
 
-                // Stop after picking the target number of highly-rated books
                 if (recommendations.Count >= (recommendations.Count == 1 ? 1 + targetHighlyRatedCount : targetHighlyRatedCount))
                     break;
             }
 
-            // --- 3) Fill with low/no rating same genre if still needed ---
+            // 3) Fill with low/no rating same genre if still needed
             booksNeeded = maxRecommendations - recommendations.Count;
             if (booksNeeded > 0)
             {
@@ -510,7 +480,7 @@ namespace fa25Group14FinalProject.Controllers
                 }
             }
 
-            // --- 4) Fill with highest-rated overall if still short ---
+            // 4) Fill with highest-rated overall if still short
             booksNeeded = maxRecommendations - recommendations.Count;
             if (booksNeeded > 0)
             {
@@ -531,8 +501,6 @@ namespace fa25Group14FinalProject.Controllers
             return recommendations.Take(maxRecommendations).ToList();
         }
 
-
-
         // Helper method to retrieve customer's credit cards
         private SelectList GetCustomerCards(int? selectedCardID = null)
         {
@@ -542,7 +510,6 @@ namespace fa25Group14FinalProject.Controllers
                 .OrderBy(c => c.CardType)
                 .ToList();
 
-            // Text should show the card type and last 4 digits (e.g., Visa - ************1234)
             List<SelectListItem> cardList = cards.Select(c => new SelectListItem
             {
                 Value = c.CardID.ToString(),

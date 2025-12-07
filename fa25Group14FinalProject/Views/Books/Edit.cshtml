@@ -1,4 +1,5 @@
 @model fa25Group14FinalProject.Models.Book
+
 @{
     ViewData["Title"] = "Edit Book: " + Model.Title;
 }
@@ -9,49 +10,52 @@
 <hr />
 <div class="row">
     <div class="col-md-6">
-        <form asp-action="Edit">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            
-            @* Hidden fields for PK and non-editable UniqueNumber *@
-            <input type="hidden" asp-for="BookID" />
-            <input type="hidden" asp-for="BookNumber" /> 
+        <form asp-action="Edit" method="post">
+            @Html.AntiForgeryToken()
 
-            @* 1. Title (Replaces Name) *@
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            @* Hidden fields for PK, unique number, and inventory so it doesn't get zeroed *@
+            <input type="hidden" asp-for="BookID" />
+            <input type="hidden" asp-for="BookNumber" />
+            <input type="hidden" asp-for="InventoryQuantity" />
+
+            @* 1. Title *@
             <div class="form-group">
                 <label asp-for="Title" class="control-label"></label>
                 <input asp-for="Title" class="form-control" />
                 <span asp-validation-for="Title" class="text-danger"></span>
             </div>
 
-            @* 2. Authors (NEW FIELD) *@
+            @* 2. Authors *@
             <div class="form-group">
                 <label asp-for="Authors" class="control-label"></label>
                 <input asp-for="Authors" class="form-control" />
                 <span asp-validation-for="Authors" class="text-danger"></span>
             </div>
-            
+
             @* 3. Description *@
             <div class="form-group">
                 <label asp-for="Description" class="control-label"></label>
                 <textarea asp-for="Description" class="form-control" rows="3"></textarea>
                 <span asp-validation-for="Description" class="text-danger"></span>
             </div>
-            
+
             @* 4. Price (Selling Price) *@
             <div class="form-group">
                 <label asp-for="Price" class="control-label"></label>
                 <input asp-for="Price" class="form-control" />
                 <span asp-validation-for="Price" class="text-danger"></span>
             </div>
-            
-            @* 5. Cost (Weighted Average Cost) - NEW FIELD *@
+
+            @* 5. Cost (Weighted Average Cost) *@
             <div class="form-group">
                 <label asp-for="Cost" class="control-label"></label>
                 <input asp-for="Cost" class="form-control" />
                 <span asp-validation-for="Cost" class="text-danger"></span>
             </div>
-            
-            @* 6. Publication Date (NEW FIELD) *@
+
+            @* 6. Publication Date *@
             <div class="form-group">
                 <label asp-for="PublishDate" class="control-label"></label>
                 <input asp-for="PublishDate"
@@ -60,8 +64,8 @@
                        asp-format="{0:yyyy-MM-dd}" />
                 <span asp-validation-for="PublishDate" class="text-danger"></span>
             </div>
-            
-            @* 7. Genre Selection (Replaces ProductType dropdown) *@
+
+            @* 7. Genre Selection *@
             <div class="form-group">
                 <label asp-for="GenreID" class="control-label">Genre</label>
                 <select asp-for="GenreID" class="form-control" asp-items="@ViewBag.AllGenres">
@@ -69,40 +73,36 @@
                 </select>
                 <span asp-validation-for="GenreID" class="text-danger"></span>
                 <small class="form-text text-muted">
-                    Don�t see the right genre?
-                    <a asp-controller="Genres" asp-action="Create" asp-route-bookId="@Model.BookID">Add a new genre</a>
+                    Don’t see the right genre?
+                    <a asp-controller="Genres" asp-action="Create" asp-route-bookId="@Model.BookID">
+                        Add a new genre
+                    </a>
                 </small>
             </div>
 
-            @* 8. Inventory Quantity (NEW FIELD) - removed because you shouldn't be able to add this manually 
-            <div class="form-group">
-                <label asp-for="InventoryQuantity" class="control-label"></label>
-                <input asp-for="InventoryQuantity" class="form-control" />
-                <span asp-validation-for="InventoryQuantity" class="text-danger"></span>
-            </div>*@
-            
-            @* 9. Reorder Point (NEW FIELD) *@
+            @* 8. InventoryQuantity stays hidden – managed via reorders, not here *@
+            @* shown earlier as a hidden field *@
+
+            @* 9. Reorder Point *@
             <div class="form-group">
                 <label asp-for="ReorderPoint" class="control-label"></label>
                 <input asp-for="ReorderPoint" class="form-control" />
                 <span asp-validation-for="ReorderPoint" class="text-danger"></span>
             </div>
 
-            @* 10. Book Status (Discontinued) - NEW FIELD *@
+            @* 10. Book Status (Discontinued) *@
             <div class="form-group form-check">
                 <label class="form-check-label">
-                    <input class="form-check-input" asp-for="BookStatus" /> @Html.DisplayNameFor(model => model.BookStatus)
+                    <input class="form-check-input" asp-for="BookStatus" />
+                    @Html.DisplayNameFor(model => model.BookStatus)
                     <span class="text-muted small">(Check to discontinue this book)</span>
                 </label>
             </div>
-            
+
             <div class="form-group">
                 <input type="submit" value="Save" class="btn btn-primary" />
+                <a asp-action="Index" class="btn btn-secondary ml-2">Back to List</a>
             </div>
         </form>
     </div>
-</div>
-
-<div>
-    <a asp-action="Index">Back to List</a>
 </div>

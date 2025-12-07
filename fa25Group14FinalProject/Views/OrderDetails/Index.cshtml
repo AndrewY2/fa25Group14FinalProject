@@ -1,26 +1,18 @@
 @model fa25Group14FinalProject.Models.Order
-@* Assumes ViewBag.PotentialSavings, ViewBag.CurrentShippingFee, and ViewBag.CurrentOrderTotal are set by OrderDetailsController.Index *@
+@using System.Linq
+@using fa25Group14FinalProject.Models
 
 @{
     ViewData["Title"] = "Shopping Cart";
 
     var potentialSavingsList = ViewBag.PotentialSavings as List<dynamic> ?? new List<dynamic>();
 
-    var highestPercentOffCoupon = potentialSavingsList
-                                    .Where(p => p.Type == "PercentOff")
-                                    .OrderByDescending(p => p.PercentOff)
-                                    .FirstOrDefault();
-
-    decimal highestPercentOff = highestPercentOffCoupon?.PercentOff ?? 0m;
-    string highestPercentOffCode = highestPercentOffCoupon?.Code;
-
     var freeShippingCoupon = potentialSavingsList
-                                    .FirstOrDefault(p => p.Type == "FreeShipping" && p.Savings > 0);
+                                .FirstOrDefault(p => p.Type == "FreeShipping" && p.Savings > 0);
 
-    string freeShipCode = freeShippingCoupon?.Code;
-
-    List<string> percentOffCoupons = potentialSavingsList
-        .Where(p => p.Type == "PercentOff" && p.PercentOff > 0)
+    // All coupon codes (percent OR free-ship) that actually save money
+    var allCouponCodes = potentialSavingsList
+        .Where(p => p.Savings > 0)
         .Select(p => (string)p.Code)
         .Distinct()
         .ToList();
@@ -29,7 +21,6 @@
 <h1>🛍️ Your Shopping Cart</h1>
 <hr />
 
-@* 1. Display Maintenance and Error Messages *@
 @if (TempData["CartRemovalMessages"] is List<string> removalMessages && removalMessages.Any())
 {
     <div class="alert alert-warning">
@@ -38,6 +29,19 @@
             @foreach (var message in removalMessages)
             {
                 <li>@message</li>
+            }
+        </ul>
+    </div>
+}
+
+@if (TempData["CartDiscountMessages"] is List<string> discountMessages && discountMessages.Any())
+{
+    <div class="alert alert-success">
+        <p><strong>🎉 Discount applied!</strong></p>
+        <ul>
+            @foreach (var msg in discountMessages)
+            {
+                <li>@msg</li>
             }
         </ul>
     </div>
@@ -57,7 +61,6 @@
 }
 else
 {
-    @* --- FORCED STACKING/FULL WIDTH --- *@
     <div class="row">
         <div class="col-12">
             <h3>Cart Contents (@Model.OrderDetails.Sum(od => od.Quantity) Books)</h3>
@@ -65,51 +68,50 @@ else
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th style="width: 30%;">Book</th>
-                        @* COMBINED PRICE COLUMN for better width *@
-                        <th style="width: 25%;">Price (Orig. / @(highestPercentOff > 0 ? highestPercentOffCode : "N/A"))</th>
-                        <th style="width: 25%;">Qty</th>
+                        <th style="width: 40%;">Book</th>
+                        <th style="width: 15%;">Price</th>
+                        <th style="width: 20%;">Qty</th>
                         <th style="width: 15%;">Extended Price</th>
-                        <th style="width: 5%;"></th>
+                        <th style="width: 10%;"></th>
                     </tr>
                 </thead>
-
                 <tbody>
                     @foreach (var od in Model.OrderDetails)
                     {
                         <tr>
                             <td>@od.Book.Title</td>
+                            <td>@od.Price.ToString("C")</td>
 
-                            @* COMBINED PRICE COLUMN (Original and Potential Discounted) *@
                             <td>
-                                <div>@od.Price.ToString("C")</div>
-                                @if (highestPercentOff > 0)
-                                {
-                                    decimal discountedPrice = od.Price * (1.0m - (highestPercentOff / 100.0m));
-                                    <div class="text-danger small">@discountedPrice.ToString("C")</div>
-                                }
-                                else
-                                {
-                                    <div class="small text-muted">No Discount</div>
-                                }
-                            </td>
-
-                            @* QUANTITY FORM *@
-                            <td>
-                                <form asp-action="Edit" asp-controller="OrderDetails" method="post" class="form-inline">
+                                <form asp-action="Edit"
+                                      asp-controller="OrderDetails"
+                                      method="post"
+                                      class="form-inline">
                                     <input type="hidden" name="id" value="@od.OrderDetailID" />
-                                    <input type="number" name="Quantity" value="@od.Quantity" min="0" max="@od.Book.InventoryQuantity" class="form-control form-control-sm w-50 mr-2" />
-                                    <input type="submit" value="Update" class="btn btn-sm btn-info" />
+                                    <input type="number"
+                                           name="Quantity"
+                                           value="@od.Quantity"
+                                           min="0"
+                                           max="@od.Book.InventoryQuantity"
+                                           class="form-control form-control-sm w-50 mr-2" />
+                                    <input type="submit"
+                                           value="Update"
+                                           class="btn btn-sm btn-info" />
                                 </form>
                             </td>
 
                             <td>@od.ExtendedPrice.ToString("C")</td>
 
-                            @* DELETE FORM *@
                             <td>
-                                <form asp-action="Delete" asp-controller="OrderDetails" method="post" class="d-inline">
+                                <form asp-action="Delete"
+                                      asp-controller="OrderDetails"
+                                      method="post"
+                                      class="d-inline">
                                     <input type="hidden" name="id" value="@od.OrderDetailID" />
-                                    <input type="submit" value="X" class="btn btn-sm btn-danger" title="Remove Item" />
+                                    <input type="submit"
+                                           value="X"
+                                           class="btn btn-sm btn-danger"
+                                           title="Remove Item" />
                                 </form>
                             </td>
                         </tr>
@@ -117,14 +119,14 @@ else
                 </tbody>
             </table>
 
-            @* COUPON MESSAGE *@
-            @if (percentOffCoupons.Any())
+            @* Simple text note about available coupon codes (percent OR free-ship) *@
+            @if (allCouponCodes.Any())
             {
                 <div class="alert alert-info">
                     <p>
                         Apply one of the following coupon codes at checkout:
                         <br />
-                        <strong>@string.Join(", ", percentOffCoupons)</strong>
+                        <strong>@string.Join(", ", allCouponCodes)</strong>
                     </p>
                 </div>
             }
@@ -142,7 +144,6 @@ else
                     <th class="text-right">Subtotal:</th>
                     <td>@Model.Subtotal.ToString("C")</td>
                 </tr>
-
                 <tr>
                     <th class="text-right">Original Shipping Fee:</th>
                     <td>@ViewBag.CurrentShippingFee.ToString("C")</td>
@@ -151,7 +152,9 @@ else
                 @if (freeShippingCoupon != null)
                 {
                     <tr>
-                        <th class="text-right text-danger">Discount Shipping Fee (Coupon @freeShipCode):</th>
+                        <th class="text-right text-danger">
+                            Shipping with @freeShippingCoupon.Code:
+                        </th>
                         <td><strong class="text-danger">$0.00</strong></td>
                     </tr>
                 }
@@ -167,7 +170,9 @@ else
                     var lowestCoupon = potentialSavingsList.First(p => p.PotentialTotal == lowestPotentialTotal);
 
                     <tr>
-                        <th class="text-right text-success">Lowest Potential Total (Coupon @lowestCoupon.Code):</th>
+                        <th class="text-right text-success">
+                            Lowest Potential Total (Coupon @lowestCoupon.Code):
+                        </th>
                         <td><strong class="text-success">@lowestPotentialTotal.ToString("C")</strong></td>
                     </tr>
                 }
@@ -189,7 +194,9 @@ else
 
             <br />
 
-            <a asp-controller="Orders" asp-action="Checkout" class="btn btn-warning btn-lg btn-block">
+            <a asp-controller="Orders"
+               asp-action="Checkout"
+               class="btn btn-warning btn-lg btn-block">
                 Proceed to Checkout
             </a>
         </div>

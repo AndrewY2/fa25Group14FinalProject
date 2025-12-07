@@ -1,0 +1,118 @@
+﻿@model IEnumerable<fa25Group14FinalProject.Models.Book>
+@using fa25Group14FinalProject.Models
+
+@{
+    // "admin", "employee", or "customer" – set in Search.cshtml
+    string mode = ViewBag.SearchMode as string ?? "customer";
+}
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Authors</th>
+            <th>Inventory</th>
+            <th>Price</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var b in Model)
+        {
+            bool isDiscontinued = b.BookStatus;                 // true = discontinued
+            bool isOutOfStock = b.InventoryQuantity <= 0;     // no copies
+            bool isUnavailable = isDiscontinued || isOutOfStock;
+
+            <tr>
+                <td>
+                    @b.Title
+                    @* Small badge to show discontinued / out of stock *@
+                    @if (isDiscontinued)
+                    {
+                        <span class="badge bg-danger ms-1">Discontinued</span>
+                    }
+                    else if (isOutOfStock)
+                    {
+                        <span class="badge bg-warning text-dark ms-1">Out of Stock</span>
+                    }
+                </td>
+                <td>@b.Authors</td>
+
+                <td>
+                    @b.InventoryQuantity
+                    @if (isUnavailable)
+                    {
+                        <span class="text-muted small d-block">
+                            @(isDiscontinued ? "Not available for purchase" : "Currently out of stock")
+                        </span>
+                    }
+                </td>
+
+                <td>@b.Price.ToString("C")</td>
+
+                <td>
+                    @* ADMIN MODE: Edit + Details *@
+                    @if (mode == "admin")
+                    {
+                        <a asp-controller="Books"
+                           asp-action="Edit"
+                           asp-route-id="@b.BookID"
+                           class="btn btn-sm btn-warning me-1">
+                            Edit
+                        </a>
+
+                        <a asp-controller="Books"
+                           asp-action="Details"
+                           asp-route-id="@b.BookID"
+                           class="btn btn-sm btn-info">
+                            Details
+                        </a>
+                    }
+                    else if (mode == "employee")
+                    {
+                        @* EMPLOYEE MODE: just Details *@
+                        <a asp-controller="Books"
+                           asp-action="Details"
+                           asp-route-id="@b.BookID"
+                           class="btn btn-sm btn-info">
+                            Details
+                        </a>
+                    }
+                    else
+                    {
+                        @* CUSTOMER MODE: Details + Add to Cart (disabled if unavailable) *@
+                        <a asp-controller="Books"
+                           asp-action="Details"
+                           asp-route-id="@b.BookID"
+                           class="btn btn-sm btn-info me-1">
+                            Details
+                        </a>
+
+                        @if (isUnavailable)
+                        {
+                            <button type="button"
+                                    class="btn btn-sm btn-secondary"
+                                    disabled>
+                                Unavailable
+                            </button>
+                        }
+                        else
+                        {
+                            <form asp-controller="OrderDetails"
+                                  asp-action="AddItem"
+                                  method="post"
+                                  class="d-inline">
+                                <input type="hidden" name="BookID" value="@b.BookID" />
+                                <input type="hidden" name="Quantity" value="1" />
+                                <button type="submit"
+                                        class="btn btn-sm btn-success">
+                                    Add to Cart
+                                </button>
+                            </form>
+                        }
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

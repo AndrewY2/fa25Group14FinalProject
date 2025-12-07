@@ -11,7 +11,6 @@
 @* --- ADMIN ONLY: ADD NEW BOOK BUTTON --- *@
 @if (User.IsInRole("Admin"))
 {
-    // The "Add New Book" button should link to the BooksController's Create action.
     <div class="mb-3">
         <a asp-controller="Books" asp-action="Create" class="btn btn-success">
             <i class="fas fa-plus"></i> Add New Book
@@ -20,7 +19,6 @@
     <hr />
 }
 @* ---------------------------------------- *@
-
 
 <h3>Filter and Sort</h3>
 
@@ -76,13 +74,13 @@
 </div>
 
 @{
-    // The book search view is used by Customer, Employee, and Admin.
-    // The search mode should indicate to the partial view what links to display (e.g., cart, edit, review).
-    // Assuming this view is primarily accessed by Employees/Admins for management/procurement:
-    ViewBag.SearchMode = User.IsInRole("Admin") ? "admin" : (User.IsInRole("Employee") ? "employee" : "customer");
+    // Tell the partial what mode we're in so it can decide which actions to show
+    ViewBag.SearchMode = User.IsInRole("Admin")
+        ? "admin"
+        : (User.IsInRole("Employee") ? "employee" : "customer");
 }
 
 @await Html.PartialAsync(
-"_BookSearchResults",
+    "_BookSearchResults",
     (IEnumerable<fa25Group14FinalProject.Models.Book>)books
 )

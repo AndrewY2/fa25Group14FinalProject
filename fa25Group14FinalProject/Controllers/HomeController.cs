@@ -1,8 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using fa25Group14FinalProject.DAL; // Assuming your DbContext is here
+using fa25Group14FinalProject.DAL;
 using Microsoft.AspNetCore.Identity;
-using fa25Group14FinalProject.Models; // For AppUser
+using fa25Group14FinalProject.Models;
+using Microsoft.EntityFrameworkCore;
+using System.Threading.Tasks;
+using System.Linq;
 
 namespace fa25Group14FinalProject.Controllers
 {
@@ -12,7 +15,6 @@ namespace fa25Group14FinalProject.Controllers
         private readonly AppDbContext _context;
         private readonly UserManager<AppUser> _userManager;
 
-        // Constructor to inject the context and UserManager
         public HomeController(AppDbContext appDbContext, UserManager<AppUser> userManager)
         {
             _context = appDbContext;
@@ -20,15 +22,12 @@ namespace fa25Group14FinalProject.Controllers
         }
 
         // GET: /Home/
-        public async Task<IActionResult> Index() // Make action async
+        public async Task<IActionResult> Index()
         {
-            // Check if the user is authenticated (logged in)
             if (User.Identity.IsAuthenticated)
             {
-                // 1. Get the AppUser object using the logged-in user's ID
                 AppUser user = await _userManager.GetUserAsync(User);
 
-                // 2. Pass the First and Last Name properties to the view
                 if (user != null)
                 {
                     ViewBag.CustomerName = $"{user.FirstName} {user.LastName}".Trim();
@@ -37,6 +36,15 @@ namespace fa25Group14FinalProject.Controllers
             else
             {
                 ViewBag.CustomerName = null;
+            }
+
+            // 🔹 Only customers see advertised coupons on the home page
+            if (User.IsInRole("Customer"))
+            {
+                var activeCoupons = _context.Coupons
+                                           .Where(c => c.Status == true)
+                                           .ToList();
+                ViewBag.ActiveCoupons = activeCoupons;
             }
 
             return View();

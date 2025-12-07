@@ -11,7 +11,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using fa25Group14FinalProject.Utilities;
 
-
 namespace fa25Group14FinalProject.Controllers
 {
     // Restrict access to logged-in customers only for cart management
@@ -59,8 +58,10 @@ namespace fa25Group14FinalProject.Controllers
             }
 
             bool cartModified = false;
-            string removeMessageKey = "CartRemovalMessages";
-            List<string> removalMessages = TempData[removeMessageKey] as List<string> ?? new List<string>();
+
+            // Separate lists so we can show different banners in the view
+            List<string> removalMessages = new List<string>();
+            List<string> discountMessages = new List<string>();
 
             // Logic to check for discontinued/out-of-stock items and update prices
             var detailsToRemove = cart.OrderDetails
@@ -72,18 +73,17 @@ namespace fa25Group14FinalProject.Controllers
                 string bookTitle = od.Book.Title;
                 string message = "";
 
-                // Check discontinued (70)
+                // Discontinued
                 if (od.Book.BookStatus == true)
                 {
                     message = $"'{bookTitle}' was discontinued and removed from your cart.";
                 }
-                // Check out of stock (67)
+                // Out of stock
                 else if (od.Book.InventoryQuantity == 0)
                 {
                     message = $"'{bookTitle}' went out of stock and was removed from your cart.";
                 }
 
-                // Only add message if it's new (70)
                 if (!string.IsNullOrWhiteSpace(message) && !removalMessages.Contains(message))
                 {
                     removalMessages.Add(message);
@@ -94,41 +94,69 @@ namespace fa25Group14FinalProject.Controllers
                 cartModified = true;
             }
 
-            // Update prices to current book price [cite: 232]
+            // --- ITEM DISCOUNTS SECTION ---
+            // If the price DROPPED while in the cart, show a "good news" message and update price.
             foreach (var od in cart.OrderDetails)
             {
-                if (od.Price != od.Book.Price)
+                decimal oldPrice = od.Price;
+                decimal newPrice = od.Book.Price;
+
+                if (oldPrice != newPrice)
                 {
-                    od.Price = od.Book.Price;
+                    if (newPrice < oldPrice)
+                    {
+                        string msg =
+                            $"Good news! The price of '{od.Book.Title}' dropped from {oldPrice:C} to {newPrice:C} " +
+                            "while it was in your cart. Your cart has been updated with the discounted price.";
+
+                        if (!discountMessages.Contains(msg))
+                        {
+                            discountMessages.Add(msg);
+                        }
+                    }
+
+                    // Always sync to the current selling price (even if it went up)
+                    od.Price = newPrice;
                     cartModified = true;
                 }
             }
+
             if (cartModified)
             {
-                TempData[removeMessageKey] = removalMessages; // Preserve messages for the view
+                if (removalMessages.Any())
+                    TempData["CartRemovalMessages"] = removalMessages;
+
+                if (discountMessages.Any())
+                    TempData["CartDiscountMessages"] = discountMessages;
+
                 _context.SaveChanges();
+
                 try
                 {
-                    var user = _userManager.GetUserAsync(User).Result;
-                    if (user != null && removalMessages.Any())
+                    // Email is ONLY about removed items (not price drops)
+                    if (removalMessages.Any())
                     {
-                        var bodyBuilder = new System.Text.StringBuilder();
-                        bodyBuilder.AppendLine($"Hi {user.FirstName},");
-                        bodyBuilder.AppendLine();
-                        bodyBuilder.AppendLine("One or more items in your Bevo's Books cart were removed because they are no longer available:");
-                        bodyBuilder.AppendLine();
-
-                        foreach (var msg in removalMessages)
+                        var user = _userManager.GetUserAsync(User).Result;
+                        if (user != null)
                         {
-                            bodyBuilder.AppendLine(" - " + msg);
+                            var bodyBuilder = new System.Text.StringBuilder();
+                            bodyBuilder.AppendLine($"Hi {user.FirstName},");
+                            bodyBuilder.AppendLine();
+                            bodyBuilder.AppendLine("One or more items in your Bevo's Books cart were removed because they are no longer available:");
+                            bodyBuilder.AppendLine();
+
+                            foreach (var msg in removalMessages)
+                            {
+                                bodyBuilder.AppendLine(" - " + msg);
+                            }
+
+                            bodyBuilder.AppendLine();
+                            bodyBuilder.AppendLine("You can return to your cart at any time to continue shopping.");
+                            bodyBuilder.AppendLine("Team 14 – Bevo's Books");
+
+                            string subject = "Team 14: Cart Update – Items Removed";
+                            EmailUtils.SendEmailAsync(user.Email, subject, bodyBuilder.ToString()).Wait();
                         }
-
-                        bodyBuilder.AppendLine();
-                        bodyBuilder.AppendLine("You can return to your cart at any time to continue shopping.");
-                        bodyBuilder.AppendLine("Team 14 – Bevo's Books");
-
-                        string subject = "Team 14: Cart Update – Items Removed";
-                        EmailUtils.SendEmailAsync(user.Email, subject, bodyBuilder.ToString()).Wait();
                     }
                 }
                 catch
@@ -140,15 +168,10 @@ namespace fa25Group14FinalProject.Controllers
             return cart;
         }
 
-
         // Helper: Calculates shipping fee dynamically (using AdminSettings if available, or defaults)
         private decimal CalculateShippingFee(int bookCount)
         {
             if (bookCount == 0) return 0.00m;
-
-            // Look up dynamic settings (assuming AdminSettings is implemented)
-            // If AdminSettings is not implemented, use the default values
-            // (Shipping price is $3.50 for the first book, and $1.50 for each additional book. [cite: 246])
 
             decimal firstBookFee = 3.50m;
             decimal additionalBookFee = 1.50m;
@@ -165,8 +188,8 @@ namespace fa25Group14FinalProject.Controllers
 
             // 1. Calculate Current Totals
             int totalBooksInCart = cart.OrderDetails.Sum(od => od.Quantity);
-            decimal currentShippingFee = CalculateShippingFee(totalBooksInCart); // Accessing the helper
-            decimal currentSubtotal = cart.Subtotal; // Uses Order.Subtotal (no item discount)
+            decimal currentShippingFee = CalculateShippingFee(totalBooksInCart);
+            decimal currentSubtotal = cart.Subtotal;
             decimal currentOrderTotal = currentSubtotal + currentShippingFee;
 
             // 2. Fetch all active coupons (Requirement 72)
@@ -182,9 +205,12 @@ namespace fa25Group14FinalProject.Controllers
                 decimal potentialShipping = currentShippingFee;
                 decimal potentialSubtotal = currentSubtotal;
 
+                decimal rawDiscount = 0m;
+                decimal displayDiscount = 0m;
+
                 if (coupon.CouponType == CouponType.FreeShipping)
                 {
-                    // Calculate potential total for Free Shipping
+                    // Free shipping preview
                     if (coupon.FreeThreshold == 0 || currentSubtotal >= coupon.FreeThreshold)
                     {
                         potentialShipping = 0.00m;
@@ -192,32 +218,35 @@ namespace fa25Group14FinalProject.Controllers
                 }
                 else if (coupon.CouponType == CouponType.PercentOff && coupon.DiscountPercent.HasValue)
                 {
-                    // Calculate potential total for Percent Off
-                    decimal discountFactor = 1.0m - (coupon.DiscountPercent.Value / 100.0m);
-                    potentialSubtotal *= discountFactor;
+                    // Same math as PlaceOrder: compute RAW discount then a DISPLAY discount
+                    rawDiscount = currentSubtotal * (coupon.DiscountPercent.Value / 100.0m);
+                    displayDiscount = Math.Round(rawDiscount, 2, MidpointRounding.AwayFromZero);
                 }
 
-                // Store calculation results
+                // FINAL potential total uses RAW discount and rounds the total
+                decimal potentialTotal = currentSubtotal - rawDiscount + potentialShipping;
+                potentialTotal = Math.Round(potentialTotal, 2, MidpointRounding.AwayFromZero);
+
                 potentialSavings.Add(new
                 {
                     Code = coupon.CouponCode,
                     Type = coupon.CouponType.ToString(),
-                    PercentOff = coupon.DiscountPercent ?? 0m, // Pass percent for item-level display
-                    Savings = currentOrderTotal - (potentialSubtotal + potentialShipping),
-                    PotentialTotal = potentialSubtotal + potentialShipping
+                    PercentOff = coupon.DiscountPercent ?? 0m,
+                    Savings = currentOrderTotal - potentialTotal,
+                    PotentialTotal = potentialTotal
                 });
             }
 
+
             ViewBag.CurrentOrderTotal = currentOrderTotal;
-            ViewBag.CurrentShippingFee = currentShippingFee; // Need to pass shipping fee separately
+            ViewBag.CurrentShippingFee = currentShippingFee;
             ViewBag.PotentialSavings = potentialSavings;
-            ViewBag.ActiveCoupons = activeCoupons; // For basic coupon listing/messages
+            ViewBag.ActiveCoupons = activeCoupons;
 
             return View(cart);
         }
 
         // POST: OrderDetails/AddItem (Used when customer clicks "Add to Cart")
-        // This is the new 'Create' functionality
         [HttpPost]
         public async Task<IActionResult> AddItem(int BookID, int Quantity)
         {
@@ -258,7 +287,7 @@ namespace fa25Group14FinalProject.Controllers
                     Quantity = Quantity,
                     BookID = BookID,
                     Price = bookToAdd.Price, // Capture current selling price
-                    Cost = bookToAdd.Cost,    // Capture current weighted average cost
+                    Cost = bookToAdd.Cost,   // Capture current weighted average cost
                     ProductName = bookToAdd.Title
                 };
                 cart.OrderDetails.Add(newOD);
@@ -269,10 +298,9 @@ namespace fa25Group14FinalProject.Controllers
         }
 
         // POST: OrderDetails/Edit (Update quantity in the cart)
-        // Note: The action name must be 'Edit' to replace the old scaffolding action.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("OrderDetailID,Quantity")] OrderDetail orderDetail) // id is OrderDetailID
+        public async Task<IActionResult> Edit(int id, [Bind("OrderDetailID,Quantity")] OrderDetail orderDetail)
         {
             OrderDetail odToUpdate = _context.OrderDetails
                 .Include(od => od.Order)
@@ -307,21 +335,16 @@ namespace fa25Group14FinalProject.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id) // id is OrderDetailID
         {
-            // Customers can delete them entirely [cite: 196]
             OrderDetail odToDelete = _context.OrderDetails
                 .Include(od => od.Order)
                 .FirstOrDefault(od => od.OrderDetailID == id && od.Order.CustomerID == GetUserID());
 
             if (odToDelete == null || odToDelete.Order.OrderStatus != OrderStatus.InCart) return NotFound();
 
-
             _context.OrderDetails.Remove(odToDelete);
             await _context.SaveChangesAsync();
 
             return RedirectToAction(nameof(Index));
         }
-
-        // ❌ REMOVED: All scaffolding actions like GET: Edit, GET: Delete, and the old POST: Create helper methods.
-        /* The Index action is now the Shopping Cart view (using no ID parameter). */
     }
 }
