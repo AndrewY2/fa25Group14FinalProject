@@ -27,7 +27,7 @@ else
                 <th>Rating</th>
                 <th>Review Text</th>
                 <th>Submitted On</th>
-                <th></th>
+                <th>Actions</th> @* CHANGED: Label for the action column *@
             </tr>
         </thead>
         <tbody>
@@ -40,7 +40,9 @@ else
                     <td>@r.ReviewText</td>
                     <td>@r.ReviewDate.ToShortDateString()</td>
                     <td>
-                        <form asp-action="Approve" asp-route-id="@r.ReviewID" method="post" class="d-inline">
+                        <a asp-action="Edit" asp-route-id="@r.ReviewID" class="btn btn-sm btn-info">Edit</a>
+
+                        <form asp-action="Approve" asp-route-id="@r.ReviewID" method="post" class="d-inline ml-1">
                             @Html.AntiForgeryToken()
                             <button type="submit" class="btn btn-sm btn-success">Approve</button>
                         </form>

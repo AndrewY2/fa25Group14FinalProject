@@ -168,6 +168,103 @@ namespace fa25Group14FinalProject.Controllers
             return View(pendingReviews);
         }
 
+        // =======================
+        // EMPLOYEE: EDIT REVIEW TEXT
+        // =======================
+
+        // GET: Reviews/Edit/5
+        // Allows employees to edit the review text for a pending review.
+        [Authorize(Roles = "Admin,Employee")]
+        public async Task<IActionResult> Edit(int? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var review = await _context.Reviews
+                .Include(r => r.Book)
+                .Include(r => r.Reviewer)
+                .FirstOrDefaultAsync(r => r.ReviewID == id);
+
+            if (review == null || review.IsApproved != null) // Only allow editing of PENDING reviews
+            {
+                TempData["ErrorMessage"] = "Cannot edit this review as it is not pending approval.";
+                return RedirectToAction(nameof(Pending));
+            }
+
+            return View(review);
+        }
+
+        // POST: Reviews/Edit/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,Employee")]
+        // CRITICAL FIX 1: Add BookID and ReviewerID to the Bind attribute
+        public async Task<IActionResult> Edit(int id, [Bind("ReviewID, ReviewText, Rating, BookID, ReviewerID")] Review review)
+        {
+            if (id != review.ReviewID)
+            {
+                return NotFound();
+            }
+
+            // 1. Fetch the existing review from the database
+            // Keep Include(r => r.Book) as it's needed if validation fails below
+            var dbReview = await _context.Reviews
+                .Include(r => r.Book)
+                .FirstOrDefaultAsync(r => r.ReviewID == id);
+
+            if (dbReview == null || dbReview.IsApproved != null)
+            {
+                TempData["ErrorMessage"] = "Review is not pending approval and cannot be edited.";
+                return RedirectToAction(nameof(Pending));
+            }
+
+            // 2. Validate model state
+            ModelState.Remove("Rating");
+
+            // Check if the current model state (validation) failed
+            if (!ModelState.IsValid)
+            {
+                // 🛑 CRITICAL FIX 2: Manually attach the required navigational properties 
+                // to the 'review' object before returning the view.
+                // This prevents runtime errors in the view caused by missing navigational data (Book, Reviewer).
+
+                // The Book property is available from dbReview (fetched via .Include)
+                review.Book = dbReview.Book;
+
+                // You might also need the Reviewer if the view uses Reviewer.FirstName/LastName
+                // review.Reviewer = await _userManager.FindByIdAsync(dbReview.ReviewerID);
+
+                // Returning the view here causes the "refresh" effect
+                return View(review);
+            }
+
+            // 3. Update only the editable fields (ReviewText)
+            dbReview.ReviewText = review.ReviewText;
+
+            try
+            {
+                _context.Update(dbReview);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!_context.Reviews.Any(e => e.ReviewID == id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            // This section executes only on successful save and correctly redirects.
+            TempData["SuccessMessage"] = "Review text updated successfully.";
+            return RedirectToAction(nameof(Pending));
+        }
+
         // POST: Reviews/Approve/5
         [HttpPost]
         [Authorize(Roles = "Admin,Employee")]

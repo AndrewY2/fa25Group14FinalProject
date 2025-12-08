@@ -1,0 +1,24 @@
+﻿@model fa25Group14FinalProject.Models.Review
+
+<form asp-action="Edit">
+    <input type="hidden" asp-for="ReviewID" />
+    <input type="hidden" asp-for="Rating" />
+    <input type="hidden" asp-for="BookID" />      
+    <input type="hidden" asp-for="ReviewerID" />  
+
+    <div class="form-group">
+        <label asp-for="Rating" class="control-label"></label>
+        <input asp-for="Rating" class="form-control" readonly />
+    </div>
+
+    <div class="form-group">
+        <label asp-for="ReviewText" class="control-label"></label>
+        <textarea asp-for="ReviewText" class="form-control" rows="5"></textarea>
+        <span asp-validation-for="ReviewText" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <input type="submit" value="Save Changes" class="btn btn-primary mt-3" />
+        <a asp-action="Pending" class="btn btn-secondary mt-3">Cancel</a>
+    </div>
+</form>
