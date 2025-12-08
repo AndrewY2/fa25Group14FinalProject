@@ -276,6 +276,32 @@ namespace fa25Group14FinalProject.Controllers
             return View("ReviewAutomaticOrders", reordersToPlace);
         }
 
+        // Fulfills the requirement to remove a book from the reorder list by setting its ReorderPoint to 0.
+        // ReordersController.cs
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveAndSetReorderPointToZero(int bookId) // Parameter MUST be named 'bookId'
+        {
+            Book book = await _context.Books.FindAsync(bookId);
+
+            if (book == null)
+            {
+                TempData["ErrorMessage"] = "Error: Book not found.";
+                return RedirectToAction(nameof(AutomaticCheck));
+            }
+
+            book.ReorderPoint = 0;
+
+            _context.Update(book);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = $"'{book.Title}' was removed from the reorder list and its reorder point was set to 0.";
+
+            // This is the line that redirects and refreshes the list:
+            return RedirectToAction(nameof(AutomaticCheck));
+        }
+
         // POST: Reorders/PlaceAutomaticOrders
         [HttpPost]
         [ValidateAntiForgeryToken]
