@@ -8,76 +8,68 @@ namespace fa25Group14FinalProject.Models
     {
         // --- Scalar Properties ---
 
-        // 1. BookID (Primary Key)
         public int BookID { get; set; }
 
-        // 2. Title
         [Required(ErrorMessage = "Book Title is required.")]
         public string Title { get; set; }
 
-        // 3. Authors
         [Required(ErrorMessage = "Author is required.")]
         public string Authors { get; set; }
 
-        // 4. Unique Book Number (Used instead of ISBN)
+        // Unique Book Number must be positive
         [Required(ErrorMessage = "Unique Book Number is required.")]
         [Display(Name = "Book Number")]
         public Int32 BookNumber { get; set; }
 
-        // 5. Description
         public string? Description { get; set; }
 
-        // 6. Price (Selling Price)
+        // Price must be positive
         [Required(ErrorMessage = "Price is required.")]
         [DisplayFormat(DataFormatString = "{0:C}", ApplyFormatInEditMode = false)]
         [DataType(DataType.Currency)]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0.")]
         public decimal Price { get; set; }
 
-        // 7. Cost (Weighted Average Cost - crucial for reports)
+        // Cost must be positive
         [Required(ErrorMessage = "Cost is required.")]
         [DisplayFormat(DataFormatString = "{0:C}", ApplyFormatInEditMode = false)]
         [DataType(DataType.Currency)]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Cost must be greater than 0.")]
         public decimal Cost { get; set; }
 
-        // 8. Publication Date
         [Required(ErrorMessage = "Publication Date is required.")]
         [Display(Name = "Publication Date")]
         [DisplayFormat(DataFormatString = "{0:MM/dd/yyyy}", ApplyFormatInEditMode = true)]
         [DataType(DataType.Date)]
         public DateTime PublishDate { get; set; }
 
-        // 9. Inventory Quantity
+        // Inventory must be 0 or greater
         [Required(ErrorMessage = "Inventory Quantity is required.")]
         [Display(Name = "Qty in Stock")]
+        [Range(0, int.MaxValue, ErrorMessage = "Inventory Quantity cannot be negative.")]
         public int InventoryQuantity { get; set; }
 
-        // 10. Reorder Point
+        // Reorder Point must be positive
         [Required(ErrorMessage = "Reorder Point is required.")]
         [Display(Name = "Reorder Point")]
+        [Range(0, int.MaxValue, ErrorMessage = "Reorder Point must be 0 or greater.")]
         public int ReorderPoint { get; set; }
 
-        // 11. Book Status (True if discontinued)
         [Display(Name = "Discontinued?")]
         public bool BookStatus { get; set; }
 
 
-        // --- Navigational Properties ---
+        // Navigational Properties
 
-        // Relationship 1: Foreign Key to Genre (One-to-One/Many relationship)
         [Required(ErrorMessage = "Book Genre is required.")]
         [Display(Name = "Genre")]
         public int GenreID { get; set; }
         public virtual Genre? Genre { get; set; }
 
-        // Relationship 2: One-to-Many with OrderDetail (Sales history)
         public List<OrderDetail> OrderDetails { get; set; }
-
-        // Relationship 3: One-to-Many with Review (Customer ratings)
         public List<Review> Reviews { get; set; }
-
-        // Relationship 4: One-to-Many with Reorder (Procurement history) <<<--- ADDITION
         public List<Reorder> Reorders { get; set; }
-        // Computed rating (average stars)
+
         public double? Rating
         {
             get
@@ -92,14 +84,9 @@ namespace fa25Group14FinalProject.Models
             }
         }
 
-
-        // Computed number of times purchased
         public int TimesPurchased { get; set; } = 0;
 
-
-
-
-        // --- Constructor to initialize lists ---
+        // Constructor
         public Book()
         {
             OrderDetails = new List<OrderDetail>();
