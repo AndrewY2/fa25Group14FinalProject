@@ -419,6 +419,7 @@ namespace fa25Group14FinalProject.Controllers
         {
             var query = _context.Books
                                  .Include(b => b.Reviews)
+                                 .Include(b => b.OrderDetails)
                                  .AsQueryable();
 
             if (!String.IsNullOrEmpty(svm.Title))
@@ -462,6 +463,9 @@ namespace fa25Group14FinalProject.Controllers
                     query = query.OrderBy(b => b.Authors);
                     break;
                 case SearchViewModel.SortType.MostPopular:
+                    query = query.OrderByDescending(b =>
+                        b.OrderDetails.Sum(od => (int?)od.Quantity ?? 0));
+                   
                     break;
                 case SearchViewModel.SortType.Newest:
                     query = query.OrderByDescending(b => b.PublishDate);
