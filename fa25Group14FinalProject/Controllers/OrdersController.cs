@@ -342,9 +342,9 @@ namespace fa25Group14FinalProject.Controllers
                 }
 
                 bodyBuilder.AppendLine("Thanks again for shopping with us!");
-                 bodyBuilder.AppendLine("Team 14 – Bevo's Books [cite: 136]");
+                 bodyBuilder.AppendLine("Team 14 – Bevo's Books");
 
-                 string subject = "Team 14: Order Confirmation [cite: 136]";
+                 string subject = "Team 14: Order Confirmation";
                 // The system will send email messages to the customer [cite: 128-129].
                 await EmailUtils.SendEmailAsync(customer.Email, subject, bodyBuilder.ToString());
             }
