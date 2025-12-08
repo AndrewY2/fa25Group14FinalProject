@@ -446,24 +446,40 @@ namespace fa25Group14FinalProject.Controllers
             return View(newCard);
         }
         // POST: Account/RemoveCard/5
+        // POST: Account/RemoveCard/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RemoveCard(int id)
         {
+            // Make sure this card belongs to the logged-in user
             Card cardToRemove = await _context.Cards
                 .FirstOrDefaultAsync(c => c.CardID == id && c.CustomerID == GetUserID());
 
-            if (cardToRemove == null) return NotFound();
+            if (cardToRemove == null)
+            {
+                return NotFound();
+            }
 
-            // Note: If the card is in use on a finalized order, deleting the card record is fine,
-            // as the Order table retains the CardID (FK) but not the Navigational Property.
+            // 🔹 Check if this card has ever been used on an order
+            bool cardInUse = await _context.Orders
+                .AnyAsync(o => o.CardID == cardToRemove.CardID);
 
+            if (cardInUse)
+            {
+                // Friendly message instead of SQL exception
+                TempData["ErrorMessage"] =
+                    "This credit card has been used on a previous order and cannot be removed.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // 🔹 Safe to delete – no orders reference this card
             _context.Cards.Remove(cardToRemove);
             await _context.SaveChangesAsync();
 
             TempData["SuccessMessage"] = "Credit card removed successfully.";
             return RedirectToAction(nameof(Index));
         }
+
 
 
         public IActionResult AccessDenied()

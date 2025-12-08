@@ -88,14 +88,7 @@ namespace fa25Group14FinalProject.Models
         }
 
         // Computed number of times purchased
-        public int TimesPurchased
-        {
-            get
-            {
-                if (OrderDetails == null) return 0;
-                return OrderDetails.Sum(od => od.Quantity);
-            }
-        }
+        public int TimesPurchased { get; set; } = 0;
 
 
 

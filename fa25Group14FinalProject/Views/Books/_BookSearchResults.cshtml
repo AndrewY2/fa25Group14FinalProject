@@ -11,8 +11,10 @@
         <tr>
             <th>Title</th>
             <th>Authors</th>
+            <th>Unique Number</th>
             <th>Inventory</th>
             <th>Price</th>
+            <th>Rating</th>
             <th>Action</th>
         </tr>
     </thead>
@@ -37,7 +39,7 @@
                     }
                 </td>
                 <td>@b.Authors</td>
-
+                <td>@b.BookNumber</td>
                 <td>
                     @b.InventoryQuantity
                     @if (isUnavailable)
@@ -47,8 +49,10 @@
                         </span>
                     }
                 </td>
-
+                
                 <td>@b.Price.ToString("C")</td>
+                <td>@b.Rating</td>
+
 
                 <td>
                     @* ADMIN MODE: Edit + Details *@

@@ -19,9 +19,11 @@ namespace fa25Group14FinalProject.ViewModels
         {
             Title,
             Author,
+            [Display(Name = "Most Popular")]
             MostPopular,
             Newest,
             Oldest,
+            [Display(Name = "Highest Rated")]
             HighestRated
         }
     }
