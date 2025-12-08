@@ -78,14 +78,20 @@ namespace fa25Group14FinalProject.Models
         // Relationship 4: One-to-Many with Reorder (Procurement history) <<<--- ADDITION
         public List<Reorder> Reorders { get; set; }
         // Computed rating (average stars)
-        public double? Rating // Change 'Rating' to 'AverageRating'
+        public double? Rating
         {
             get
             {
-                if (Reviews == null || Reviews.Count == 0) return 0;
-                return Reviews.Average(r => r.Rating);
+                var approved = Reviews?
+                    .Where(r => r.IsApproved == true)
+                    .ToList();
+
+                if (approved == null || approved.Count == 0) return null;
+
+                return approved.Average(r => r.Rating);
             }
         }
+
 
         // Computed number of times purchased
         public int TimesPurchased { get; set; } = 0;
