@@ -284,6 +284,7 @@ namespace fa25Group14FinalProject.Controllers
                 if (book != null)
                 {
                     book.InventoryQuantity -= od.Quantity;
+                    book.TimesPurchased += od.Quantity;
                     _context.Update(book);
                 }
             }

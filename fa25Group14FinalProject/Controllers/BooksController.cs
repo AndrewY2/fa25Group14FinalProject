@@ -1,14 +1,15 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
 using fa25Group14FinalProject.DAL;
 using fa25Group14FinalProject.Models;
 using fa25Group14FinalProject.ViewModels;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using static fa25Group14FinalProject.ViewModels.SearchViewModel;
 
 namespace fa25Group14FinalProject.Controllers
 {
@@ -87,7 +88,21 @@ namespace fa25Group14FinalProject.Controllers
             var query = BuildBookSearchQuery(svm);
             List<Book> SelectedBooks = query.ToList();
 
-            SelectList genreSelectList = new SelectList(_context.Genres, "GenreID", "GenreName");
+            if (svm.SortOption == SortType.MostPopular)
+            {
+                SelectedBooks = SelectedBooks
+                    .OrderByDescending(b => b.TimesPurchased)
+                    .ToList();
+            }
+            else if (svm.SortOption == SortType.HighestRated)
+            {
+                // Rating is a computed property based on Reviews – must sort in memory
+                SelectedBooks = SelectedBooks
+                    .OrderByDescending(b => b.Rating ?? 0.0)
+                    .ToList();
+            }
+
+                SelectList genreSelectList = new SelectList(_context.Genres, "GenreID", "GenreName");
             ViewBag.GenreSelectList = genreSelectList;
 
             ViewBag.InitialBookList = SelectedBooks;
@@ -376,7 +391,6 @@ namespace fa25Group14FinalProject.Controllers
                     query = query.OrderBy(b => b.Authors);
                     break;
                 case SearchViewModel.SortType.MostPopular:
-                    query = query.OrderByDescending(b => b.TimesPurchased);
                     break;
                 case SearchViewModel.SortType.Newest:
                     query = query.OrderByDescending(b => b.PublishDate);
@@ -385,7 +399,6 @@ namespace fa25Group14FinalProject.Controllers
                     query = query.OrderBy(b => b.PublishDate);
                     break;
                 case SearchViewModel.SortType.HighestRated:
-                    query = query.OrderByDescending(b => b.Rating);
                     break;
             }
 
