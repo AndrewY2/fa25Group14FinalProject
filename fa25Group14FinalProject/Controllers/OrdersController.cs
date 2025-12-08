@@ -64,6 +64,7 @@ namespace fa25Group14FinalProject.Controllers
                .Include(o => o.Customer)
                .Include(o => o.OrderDetails)
                .Include(o => o.Card)
+               .Where(o => o.OrderStatus != OrderStatus.InCart)
                .AsQueryable();
 
             if (User.IsInRole("Customer"))

@@ -18,7 +18,7 @@
         : new List<fa25Group14FinalProject.Models.Review>();
 
     double? avgRating = approvedReviews.Any()
-        ? approvedReviews.Average(r => r.Rating)
+        ? Math.Round(approvedReviews.Average(r => r.Rating), 1)
         : (double?)null;
 
     int approvedCount = approvedReviews.Count;
