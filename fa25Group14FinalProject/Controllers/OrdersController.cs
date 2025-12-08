@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
 using static System.Net.Mime.MediaTypeNames;
@@ -144,18 +145,23 @@ namespace fa25Group14FinalProject.Controllers
         {
             Order cart = GetCartForCheckout();
 
-            // Customers should not be able to check out if they have an empty shopping cart[cite: 169].
             if (cart == null || !cart.OrderDetails.Any())
             {
                 TempData["ErrorMessage"] = "You cannot check out with an empty cart.";
                 return RedirectToAction("Index", "OrderDetails");
             }
 
-            cart.ShippingFee = CalculateShippingFee(cart.OrderDetails.Sum(od => od.Quantity));
+            // Only compute shipping if it's still zero and no coupon set it yet
+            if (cart.ShippingFee <= 0m)
+            {
+                cart.ShippingFee = CalculateShippingFee(cart.OrderDetails.Sum(od => od.Quantity));
+            }
+
             ViewBag.AllCards = GetCustomerCards();
 
             return View(cart);
         }
+       
 
         // POST: Orders/PlaceOrder (Place Order)
         [HttpPost]
@@ -192,12 +198,10 @@ namespace fa25Group14FinalProject.Controllers
 
                 if (appliedCoupon == null)
                 {
-                    // If the coupon code is invalid, disabled, or not applicable to the order, the customer should receive a message[cite: 177].
                     ModelState.AddModelError("CouponCode", "The coupon code is not valid or disabled.");
                 }
                 else
                 {
-                    // A given coupon may only be used once by an individual customer[cite: 278].
                     bool alreadyUsed = await _context.Orders
                         .AnyAsync(o => o.CouponID == appliedCoupon.CouponID
                                        && o.CustomerID == currentUserID
@@ -211,12 +215,20 @@ namespace fa25Group14FinalProject.Controllers
             }
             else
             {
+                // No new code typed; use the coupon already attached to this cart, if any
+                if (cart.CouponID.HasValue)
+                {
+                    appliedCoupon = await _context.Coupons
+                        .FirstOrDefaultAsync(c => c.CouponID == cart.CouponID.Value && c.Status == true);
+                }
+
                 // Clear any lingering error messages if the user clears the coupon code field
                 if (ModelState.ContainsKey("CouponCode"))
                 {
                     ModelState.Remove("CouponCode");
                 }
             }
+
 
             // If validation failed, redisplay Checkout with errors
             if (!ModelState.IsValid)
@@ -261,6 +273,9 @@ namespace fa25Group14FinalProject.Controllers
             cart.ShippingFee = shippingFee;
             cart.DiscountAmount = discountAmount;
 
+            // NEW: remember which coupon was applied
+            cart.CouponID = appliedCoupon?.CouponID;
+
             // FINAL TOTAL uses RAW discount, then rounds the total (so 29.555 -> 29.56)
             decimal finalTotal = originalSubtotal - discountAmount + shippingFee;
             finalTotal = Math.Round(finalTotal, 2, MidpointRounding.AwayFromZero);
@@ -268,6 +283,10 @@ namespace fa25Group14FinalProject.Controllers
             // 3b. If user clicked "Apply Coupon", just show updated totals – DO NOT place order
             if (submitAction == "apply")
             {
+                // Save the applied discount and shipping fee on the InCart order
+                _context.Update(cart);
+                await _context.SaveChangesAsync();
+
                 ViewBag.AllCards = GetCustomerCards(SelectedCardID);
                 ViewBag.TotalSavings = (originalSubtotal + CalculateShippingFee(totalBooks)) - finalTotal; // Show savings based on original shipping
                 ViewBag.AppliedCouponCode = appliedCoupon?.CouponCode;
