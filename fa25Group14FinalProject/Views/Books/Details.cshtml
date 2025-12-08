@@ -197,8 +197,17 @@
     }
     else if (Model.InventoryQuantity > 0)
     {
-        <form asp-controller="OrderDetails" asp-action="AddItem" method="post" class="form-inline">
-            <input type="hidden" name="BookID" value="@Model.BookID" />
+        @if (ViewBag.AlreadyInCart == true)
+        {
+            <div class="alert alert-info">
+                This book is already in your cart. You can update the quantity from your
+                <a asp-controller="OrderDetails" asp-action="Index">shopping cart</a>.
+            </div>
+        }
+        else
+        {
+            <form asp-controller="OrderDetails" asp-action="AddItem" method="post" class="form-inline">
+                <input type="hidden" name="BookID" value="@Model.BookID" />
             <div class="form-group mr-2">
                 <label for="Quantity" class="mr-2">Quantity:</label>
                 <input type="number"
@@ -212,6 +221,8 @@
             </div>
             <button type="submit" class="btn btn-success">Add to Cart</button>
         </form>
+        }
+ 
     }
     else
     {
