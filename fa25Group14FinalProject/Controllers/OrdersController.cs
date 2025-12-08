@@ -385,7 +385,6 @@ namespace fa25Group14FinalProject.Controllers
         // AuthorMatches is no longer needed if we use direct string comparison for Rule 1.
         // If the requirement means matching only one author in a comma-separated list,
         // this method should be re-implemented, but for exact string matching, it's unnecessary.
-
         private async Task<List<Book>> GetRecommendationsForOrder(string customerID, Book purchasedBook)
         {
             var recommendations = new List<Book>();
@@ -398,7 +397,7 @@ namespace fa25Group14FinalProject.Controllers
             string targetAuthor = purchasedBook.Authors?.Trim() ?? "";
 
             // --- Rule 0: Exclusion (Trumps all others) ---
-            // System should not recommend books that the customer has already purchased[cite: 109].
+            // System should not recommend books that the customer has already purchased.
             var purchasedBookIDs = await _context.Orders
                 .Where(o => o.CustomerID == customerID && o.OrderStatus != OrderStatus.InCart)
                 .SelectMany(o => o.OrderDetails)
@@ -413,16 +412,33 @@ namespace fa25Group14FinalProject.Controllers
                 .Where(b => !purchasedBookIDs.Contains(b.BookID) && b.BookID != purchasedBook.BookID)
                 .ToListAsync();
 
+            // Find all available books in the target genre for rules 1, 2, and 3
+            var sameGenreBooks = availableBooks.Where(b => b.GenreID == targetGenreID).ToList();
+
+            // 🛑 CRITICAL FIX: Implement 'If there are no books in the same genre' condition
+            if (!sameGenreBooks.Any())
+            {
+                // --- Rule 4: Highest Rated Overall (If NO same-genre books) ---
+                // Pick the highest rated books overall to fill in remaining spots.
+                var overallHighestRated = availableBooks
+                    .OrderByDescending(b => b.Rating ?? 0)
+                    .Take(maxRecommendations)
+                    .ToList();
+
+                // If no same-genre books exist, return the overall highest rated books immediately.
+                return overallHighestRated;
+            }
+
+            // --- CONTINUE WITH GENRE-SPECIFIC RULES (1, 2, 3) ONLY IF sameGenreBooks IS NOT EMPTY ---
+
             var recommendedIds = new HashSet<int>();
             var usedAuthors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             // --- Rule 1: Same Author, Same Genre ---
-            // If the author has another book of the same genre... this should always be in the recommendation [cite: 111-112].
-            var sameAuthorSameGenre = availableBooks
-                .Where(b => b.GenreID == targetGenreID
-                    // FIX: Direct comparison of the Authors string for exact match
-                    && b.Authors.Trim().Equals(targetAuthor, StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(b => b.Rating ?? 0) // Choose the book with the highest rating[cite: 113].
+            // If the author has another book of the same genre... this should always be in the recommendation.
+            var sameAuthorSameGenre = sameGenreBooks
+                .Where(b => b.Authors.Trim().Equals(targetAuthor, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(b => b.Rating ?? 0) // Choose the book with the highest rating.
                 .ToList();
 
             if (sameAuthorSameGenre.Any())
@@ -433,25 +449,24 @@ namespace fa25Group14FinalProject.Controllers
                 usedAuthors.Add((authorRec.Authors ?? "").Trim());
             }
 
-            int booksNeeded = maxRecommendations - recommendations.Count;
-            // If Rule 1 yielded nothing, we need 3 books from subsequent categories; otherwise, we need 2 [cite: 116-117].
+            // If Rule 1 yielded nothing, we need 3 books from subsequent categories; otherwise, we need 2.
             int targetHighlyRatedCount = (recommendations.Count == 0) ? 3 : 2;
 
             // --- Rule 2: Highly-Rated Same Genre (distinct authors) ---
             if (recommendations.Count < maxRecommendations)
             {
-                var highlyRated = availableBooks
-                    // Filter: Same Genre, Rating >= 4.0 [cite: 119-121], not already recommended
-                    .Where(b => b.GenreID == targetGenreID && (b.Rating ?? 0) >= 4.0 && !recommendedIds.Contains(b.BookID))
-                    .OrderByDescending(b => b.Rating ?? 0) // Top two will be fine[cite: 122].
+                var highlyRated = sameGenreBooks
+                    // Filter: Rating >= 4.0, not already recommended
+                    .Where(b => (b.Rating ?? 0) >= 4.0 && !recommendedIds.Contains(b.BookID))
+                    .OrderByDescending(b => b.Rating ?? 0) // Top two will be fine.
                     .ToList();
 
                 foreach (var book in highlyRated)
                 {
-                    if (recommendations.Count >= maxRecommendations) break;
+                    if (recommendations.Count >= maxRecommendations) break; // Stop filling spots entirely once max is reached
 
                     var authorKey = (book.Authors ?? "").Trim();
-                    // Must have two different authors (distinct authors check) [cite: 118-119].
+                    // Must have two different authors (distinct authors check).
                     if (!usedAuthors.Contains(authorKey))
                     {
                         recommendations.Add(book);
@@ -459,50 +474,35 @@ namespace fa25Group14FinalProject.Controllers
                         usedAuthors.Add(authorKey);
                     }
 
-                    // Stop once we hit the maximum number of highly-rated books needed
-                    if (recommendations.Count == targetHighlyRatedCount)
-                        break;
+                    // Stop once we hit the maximum number of highly-rated books needed for the target set size
+                    // Note: targetHighlyRatedCount is used to determine how many books we *aim* to get from this category
+                    // but the overall maxRecommendations is the hard limit. The check above handles the hard limit.
                 }
             }
 
             // --- Rule 3: Low/No Rating Same Genre (to fill blank spots) ---
-            booksNeeded = maxRecommendations - recommendations.Count;
+            int booksNeeded = maxRecommendations - recommendations.Count;
             if (booksNeeded > 0)
             {
                 // Filter: Same Genre, Not highly rated (< 4.0 or null rating), Not already recommended
-                var lowRated = availableBooks
-                    .Where(b => b.GenreID == targetGenreID
-                            && (b.Rating ?? 0) < 4.0
-                            && !recommendedIds.Contains(b.BookID))
+                var lowRated = sameGenreBooks
+                    .Where(b => (b.Rating ?? 0) < 4.0 && !recommendedIds.Contains(b.BookID))
                     .OrderBy(b => b.Rating ?? 0) // Order by low rating (lowest first, or null)
+                    .Take(booksNeeded)
                     .ToList();
 
+                // Add all required low-rated books to fill the remaining spots.
+                recommendations.AddRange(lowRated);
+
+                // Update recommendedIds (though it's not strictly necessary for the rest of the flow since Rule 4 is now outside this branch)
                 foreach (var book in lowRated)
                 {
-                    if (recommendations.Count >= maxRecommendations) break;
-                    // We don't enforce distinct authors here, just fill spots[cite: 123].
-                    recommendations.Add(book);
                     recommendedIds.Add(book.BookID);
                 }
             }
 
-            // --- Rule 4: Highest Rated Overall (If still short) ---
-            booksNeeded = maxRecommendations - recommendations.Count;
-            if (booksNeeded > 0)
-            {
-                // Pick the highest rated books overall to fill in remaining spots [cite: 124-125].
-                var overall = availableBooks
-                    .Where(b => !recommendedIds.Contains(b.BookID))
-                    .OrderByDescending(b => b.Rating ?? 0)
-                    .ToList();
-
-                foreach (var book in overall)
-                {
-                    if (recommendations.Count >= maxRecommendations) break;
-                    recommendations.Add(book);
-                    recommendedIds.Add(book.BookID);
-                }
-            }
+            // 🛑 Note: The previous Rule 4 logic is now handled by the early exit check at the beginning.
+            // We only need to ensure we return a list of exactly maxRecommendations (3) books.
 
             return recommendations.Take(maxRecommendations).ToList();
         }
