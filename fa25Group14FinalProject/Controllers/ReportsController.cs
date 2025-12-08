@@ -154,31 +154,47 @@ namespace fa25Group14FinalProject.Controllers
 
 
                 case "C": // All Customers (Grouped by Customer)
-                    var reportCQuery = query.GroupBy(od => new { od.Order.Customer.Id, od.Order.Customer.FirstName, od.Order.Customer.LastName })
+                    var reportCQuery = query
+                        .GroupBy(od => new
+                        {
+                            od.Order.Customer.Id,
+                            od.Order.Customer.FirstName,
+                            od.Order.Customer.LastName
+                        })
                         .Select(g => new
                         {
                             CustomerName = g.Key.FirstName + " " + g.Key.LastName,
                             TotalRevenue = g.Sum(od => od.Quantity * od.Price),
-                            TotalProfit = g.Sum(od => od.Quantity * (od.Price - od.Cost))
+                            TotalCost = g.Sum(od => od.Quantity * od.Cost),
+                            TotalProfit = g.Sum(od => od.Quantity * (od.Price - od.Cost)),
+                            ProfitMargin = g.Sum(od => od.Quantity * od.Price) == 0
+                                ? 0m
+                                : g.Sum(od => od.Quantity * (od.Price - od.Cost)) / g.Sum(od => od.Quantity * od.Price)
                         });
 
                     // Apply Sorting for Report C
                     switch (vm.SortField)
                     {
                         case "TotalRevenue":
-                            reportCQuery = (vm.SortDirection == "Ascending") ? reportCQuery.OrderBy(r => r.TotalRevenue) : reportCQuery.OrderByDescending(r => r.TotalRevenue);
+                            reportCQuery = (vm.SortDirection == "Ascending")
+                                ? reportCQuery.OrderBy(r => r.TotalRevenue)
+                                : reportCQuery.OrderByDescending(r => r.TotalRevenue);
                             break;
-                        case "ProfitMargin": // Use "ProfitMargin" to match the report name, but sort on TotalProfit
-                            reportCQuery = (vm.SortDirection == "Ascending") ? reportCQuery.OrderBy(r => r.TotalProfit) : reportCQuery.OrderByDescending(r => r.TotalProfit);
+                        case "ProfitMargin":
+                            reportCQuery = (vm.SortDirection == "Ascending")
+                                ? reportCQuery.OrderBy(r => r.ProfitMargin)
+                                : reportCQuery.OrderByDescending(r => r.ProfitMargin);
                             break;
-                        default: // Default to Profit Margin Descending if no sort is specified.
-                            reportCQuery = reportCQuery.OrderByDescending(r => r.TotalProfit);
+                        default: // Default to Profit Margin Descending
+                            reportCQuery = reportCQuery.OrderByDescending(r => r.ProfitMargin);
                             break;
                     }
 
                     var reportC = await reportCQuery.ToListAsync();
                     ViewBag.RecordCount = reportC.Count;
                     return View("ReportC", reportC);
+
+
 
                 case "D": // Totals (Total Profit, Cost, Revenue)
                     // Note: Calculations are based on the currently filtered 'query'

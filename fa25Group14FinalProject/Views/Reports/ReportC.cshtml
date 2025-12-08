@@ -3,36 +3,12 @@
 
 @{
     ViewData["Title"] = "Report C - All Customers";
-    // Read current sort options from query string
-    string sortBy = (Context.Request.Query["sortBy"].FirstOrDefault() ?? "margin").ToLower();
-    string sortDir = (Context.Request.Query["sortDir"].FirstOrDefault() ?? "desc").ToLower();
+    // Read current sort options from query string for dropdown state
+    string sortBy = (Context.Request.Query["SortField"].FirstOrDefault() ?? "ProfitMargin").ToLower();
+    string sortDir = (Context.Request.Query["SortDirection"].FirstOrDefault() ?? "Descending").ToLower();
 
-    // Start from the controller's data
-    IEnumerable<dynamic> rowsEnum = Model;
-    // Choose sort key
-    Func<dynamic, object> keySelector;
-    switch (sortBy)
-    {
-        case "revenue":
-            keySelector = r => (decimal)r.TotalRevenue;
-            break;
-        case "margin": // Default sort for Report C is Profit Margin (TotalProfit)
-        default:
-            keySelector = r => (decimal)r.TotalProfit;
-            break;
-    }
-
-    // Apply ascending/descending
-    if (sortDir == "asc")
-    {
-        rowsEnum = rowsEnum.OrderBy(keySelector);
-    }
-    else
-    {
-        rowsEnum = rowsEnum.OrderByDescending(keySelector);
-    }
-
-    var rows = rowsEnum.ToList();
+    // Use Model directly - no re-sorting in view (controller handles it)
+    var rows = Model;
 }
 
 <div class="row mt-3">
@@ -57,55 +33,24 @@
       class="form-inline mb-3">
 
     <input type="hidden" name="reportType" value="C" />
-
     <input type="hidden" name="StartDate" value="@Context.Request.Query["StartDate"]" />
     <input type="hidden" name="EndDate" value="@Context.Request.Query["EndDate"]" />
     <input type="hidden" name="CustomerFilter" value="@Context.Request.Query["CustomerFilter"]" />
     <input type="hidden" name="BookFilter" value="@Context.Request.Query["BookFilter"]" />
 
     <div class="form-group mr-2">
-        <label for="sortBy" class="mr-1">Sort by:</label>
-        <select id="sortBy" name="sortBy" class="form-control">
-            @if (sortBy == "margin")
-            {
-                <option value="margin" selected>Profit Margin</option>
-            }
-            else
-            {
-                <option value="margin">Profit Margin</option>
-            }
-
-            @if (sortBy == "revenue")
-            {
-                <option value="revenue" selected>$ Amount of Revenue</option>
-            }
-            else
-            {
-                <option value="revenue">$ Amount of Revenue</option>
-            }
+        <label for="SortField" class="mr-1">Sort by:</label>
+        <select id="SortField" name="SortField" class="form-control">
+            <option value="ProfitMargin" selected="@(sortBy.Contains("profit"))">Profit Margin</option>
+            <option value="TotalRevenue" selected="@(sortBy.Contains("revenue"))">$ Amount of Revenue</option>
         </select>
     </div>
 
     <div class="form-group mr-2">
-        <label for="sortDir" class="mr-1">Direction:</label>
-        <select id="sortDir" name="sortDir" class="form-control">
-            @if (sortDir == "desc")
-            {
-                <option value="desc" selected>Descending</option>
-            }
-            else
-            {
-                <option value="desc">Descending</option>
-            }
-
-            @if (sortDir == "asc")
-            {
-                <option value="asc" selected>Ascending</option>
-            }
-            else
-            {
-                <option value="asc">Ascending</option>
-            }
+        <label for="SortDirection" class="mr-1">Direction:</label>
+        <select id="SortDirection" name="SortDirection" class="form-control">
+            <option value="Descending" selected="@(sortDir == "descending")">Descending</option>
+            <option value="Ascending" selected="@(sortDir == "ascending")">Ascending</option>
         </select>
     </div>
 
@@ -120,7 +65,7 @@
                 <th>Customer Name</th>
                 <th>Total Revenue</th>
                 <th>Total Profit</th>
-                <th>Profit Margin \%</th>
+                <th>Profit Margin</th>
             </tr>
         </thead>
         <tbody>
@@ -129,15 +74,16 @@
                 string customerName = (string)row.CustomerName;
                 decimal totalRevenue = (decimal)row.TotalRevenue;
                 decimal totalProfit = (decimal)row.TotalProfit;
+                decimal profitMarginRatio = (decimal)row.ProfitMargin; // From controller: TotalProfit / TotalRevenue
 
-                // Calculate Profit Margin %
-                decimal marginPercent = totalRevenue == 0 ? 0 : (totalProfit / totalRevenue) * 100m;
+                // Convert ratio to percentage for display (controller provides ratio 0.0-1.0)
+                decimal marginPercent = profitMarginRatio * 100m;
 
                 <tr>
                     <td>@customerName</td>
                     <td>@totalRevenue.ToString("C")</td>
                     <td>@totalProfit.ToString("C")</td>
-                    <td>@marginPercent.ToString("0.##")\%</td>
+                    <td>@marginPercent.ToString("0.##")%</td>
                 </tr>
             }
         </tbody>

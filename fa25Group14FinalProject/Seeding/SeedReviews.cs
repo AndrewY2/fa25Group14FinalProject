@@ -65,7 +65,8 @@ namespace fa25Group14FinalProject.Seeding
                 Approver = susanBarnes,
                 Rating = 5,
                 ReviewText = "Incredible pacing and tension throughout—couldn't stop reading!",
-                DisputeStatus = DisputeStatus.Approve
+                DisputeStatus = DisputeStatus.Approve,
+                IsApproved = true
             });
 
             // 2. Christopher Baker – Chasing Darkness – Jack Mason
@@ -76,7 +77,8 @@ namespace fa25Group14FinalProject.Seeding
                 Approver = jackMason,
                 Rating = 4,
                 ReviewText = "Tight mystery with solid twists; a bit slow in the middle.",
-                DisputeStatus = DisputeStatus.Reject
+                DisputeStatus = DisputeStatus.Reject,
+                IsApproved = false
             });
 
             // 3. Wendy Chang – The Professional – Cindy Silva
@@ -87,7 +89,8 @@ namespace fa25Group14FinalProject.Seeding
                 Approver = cindySilva,
                 Rating = 4,
                 ReviewText = "Classic Spenser. Sharp dialogue and old-school charm.",
-                DisputeStatus = DisputeStatus.Approve
+                DisputeStatus = DisputeStatus.Approve,
+                IsApproved = true
             });
 
             // 4. Lim Chou – The Other Queen – Eric Stuart
@@ -98,7 +101,8 @@ namespace fa25Group14FinalProject.Seeding
                 Approver = ericStuart,
                 Rating = 3,
                 ReviewText = "Rich historical detail, but pacing drags at times.",
-                DisputeStatus = DisputeStatus.Approve
+                DisputeStatus = DisputeStatus.Approve,
+                IsApproved = true
             });
 
             // 5. Lim Chou – Wrecked – Allen Rogers
@@ -109,7 +113,8 @@ namespace fa25Group14FinalProject.Seeding
                 Approver = allenRogers,
                 Rating = 5,
                 ReviewText = "Fast-moving and witty. Loved the Cape Cod setting.",
-                DisputeStatus = DisputeStatus.Approve
+                DisputeStatus = DisputeStatus.Approve,
+                IsApproved = true
             });
 
             // 6. Lim Chou – Reckless – Hector Garcia
@@ -120,7 +125,8 @@ namespace fa25Group14FinalProject.Seeding
                 Approver = hectorGarcia,
                 Rating = 4,
                 ReviewText = "Emotional and thrilling. Hauck's motives feel real.",
-                DisputeStatus = DisputeStatus.Approve
+                DisputeStatus = DisputeStatus.Approve,
+                IsApproved = true
             });
 
             // 7. Jeffrey Hampton – The Professional – Cindy Silva
@@ -131,7 +137,8 @@ namespace fa25Group14FinalProject.Seeding
                 Approver = cindySilva,
                 Rating = 5,
                 ReviewText = "Lean, witty Spenser case—couldn't put it down.",
-                DisputeStatus = DisputeStatus.Approve
+                DisputeStatus = DisputeStatus.Approve,
+                IsApproved = true
             });
 
             // 8. Charles Miller – Say Goodbye – Allen Rogers
@@ -142,7 +149,8 @@ namespace fa25Group14FinalProject.Seeding
                 Approver = allenRogers,
                 Rating = 4,
                 ReviewText = "Creepy, clever, and tightly plotted.",
-                DisputeStatus = DisputeStatus.Reject
+                DisputeStatus = DisputeStatus.Reject,
+                IsApproved = false
             });
 
             // 9. Ernest Lowe – Wrecked – Eric Stuart
@@ -153,7 +161,8 @@ namespace fa25Group14FinalProject.Seeding
                 Approver = ericStuart,
                 Rating = 4,
                 ReviewText = "Light, fun mystery with brisk pacing.",
-                DisputeStatus = DisputeStatus.Approve
+                DisputeStatus = DisputeStatus.Approve,
+                IsApproved = true
             });
 
             // 10. Ernest Lowe – Reckless – Eric Stuart
@@ -164,7 +173,8 @@ namespace fa25Group14FinalProject.Seeding
                 Approver = ericStuart,
                 Rating = 3,
                 ReviewText = "Gritty and tense, but a bit uneven.",
-                DisputeStatus = DisputeStatus.Approve
+                DisputeStatus = DisputeStatus.Approve,
+                IsApproved = true
             });
 
             // Super simple: table is empty, so just insert them
