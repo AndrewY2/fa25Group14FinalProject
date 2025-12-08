@@ -182,11 +182,11 @@ namespace fa25Group14FinalProject.Controllers
                             break;
                         case "ProfitMargin":
                             reportCQuery = (vm.SortDirection == "Ascending")
-                                ? reportCQuery.OrderBy(r => r.ProfitMargin)
-                                : reportCQuery.OrderByDescending(r => r.ProfitMargin);
+                                ? reportCQuery.OrderBy(r => r.TotalProfit)
+                                : reportCQuery.OrderByDescending(r => r.TotalProfit);
                             break;
                         default: // Default to Profit Margin Descending
-                            reportCQuery = reportCQuery.OrderByDescending(r => r.ProfitMargin);
+                            reportCQuery = reportCQuery.OrderByDescending(r => r.TotalProfit);
                             break;
                     }
 
