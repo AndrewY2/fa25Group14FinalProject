@@ -21,23 +21,24 @@
         @TempData["ErrorMessage"]
     </div>
 }
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">
+        @TempData["SuccessMessage"]
+    </div>
+}
 
 @if (Model == null || !Model.Any())
 {
     <div class="alert alert-info">
         No books currently require automatic reorder.
     </div>
-
-    <p>
-
-    </p>
 }
 else
 {
     <p class="text-muted">
         Review the suggested quantities and costs for each book.
-        The default quantity is 5 (citation removed for Razor compatibility).
-        Set quantity to <strong>0</strong> to skip ordering that title.
+        The default quantity is 5. Set quantity to <strong>0</strong> to skip ordering that title.
     </p>
 
     <form asp-action="PlaceAutomaticOrders" method="post">
@@ -50,9 +51,9 @@ else
                     <th class="text-center">Reorder Point</th>
                     <th class="text-end">Cost / Copy</th>
                     <th class="text-center">Quantity to Order</th>
+                    <th>Action</th>
                 </tr>
             </thead>
-
             <tbody>
                 @for (int i = 0; i < Model.Count; i++)
                 {
@@ -76,6 +77,17 @@ else
                                    class="form-control form-control-sm text-center"
                                    min="0" />
                             <span asp-validation-for="@(Model[i].Quantity)" class="text-danger"></span>
+                        </td>
+
+                        <td>
+                            <button type="submit"
+                                    formaction="@Url.Action("RemoveAndSetReorderPointToZero", "Reorders")"
+                                    formmethod="post"
+                                    name="bookId"
+                                    value="@Model[i].BookID"
+                                    class="btn btn-sm btn-warning">
+                                Remove and Set Reorder Point to 0
+                            </button>
                         </td>
                     </tr>
                 }
