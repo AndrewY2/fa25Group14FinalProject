@@ -63,7 +63,13 @@ else
 {
     <div class="row">
         <div class="col-12">
-            <h3>Cart Contents (@Model.OrderDetails.Sum(od => od.Quantity) Books)</h3>
+            @{
+                var totalQty = Model.OrderDetails.Sum(od => od.Quantity);
+                var label = totalQty == 1 ? "Book" : "Books";
+            }
+
+            <h3>Cart Contents (@totalQty @label)</h3>
+
 
             <table class="table table-striped">
                 <thead>
