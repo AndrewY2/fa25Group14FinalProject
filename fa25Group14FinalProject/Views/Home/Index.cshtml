@@ -11,8 +11,29 @@
     var coupons = ViewBag.ActiveCoupons as List<Coupon>;
 }
 
-<div class="text-center mt-5">
-    <h1 class="display-4">Welcome to Our Book Store, @ViewBag.CustomerName!</h1>
+@* <div class="text-center mt-5">
+    <h1 class="display-4">Welcome to Our Book Store, @ViewBag.CustomerName!</h1> *@
+
+    @{
+        // Safely pull the name from ViewBag (might be null)
+        string customerName = ViewBag.CustomerName as string;
+    }
+
+    <div class="text-center mt-5">
+        @if (!string.IsNullOrEmpty(customerName))
+        {
+            <h1 class="display-4">
+                Welcome to Bevo's Books, @customerName!
+            </h1>
+        }
+        else
+        {
+            <h1 class="display-4">
+                Welcome to Bevo's Books!
+            </h1>
+        }
+ 
+
 
     @if (!User.Identity.IsAuthenticated)
     {
@@ -22,6 +43,7 @@
     }
     else if (isCustomer)
     {
+
         <p class="lead mt-3">
             Browse books, manage your cart, and review your past orders.
         </p>
@@ -93,4 +115,5 @@
             </div>
         </div>
     }
+</div>
 </div>
