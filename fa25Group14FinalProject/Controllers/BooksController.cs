@@ -2,6 +2,7 @@ using fa25Group14FinalProject.DAL;
 using fa25Group14FinalProject.Models;
 using fa25Group14FinalProject.ViewModels;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -16,10 +17,12 @@ namespace fa25Group14FinalProject.Controllers
     public class BooksController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly UserManager<AppUser> _userManager;
 
-        public BooksController(AppDbContext context)
+        public BooksController(AppDbContext context, UserManager<AppUser> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
 
         // --- CUSTOMER & EMPLOYEE FUNCTIONALITY (SEARCH/INDEX/DETAILS) ---
@@ -137,6 +140,20 @@ namespace fa25Group14FinalProject.Controllers
             {
                 return NotFound();
             }
+            bool alreadyInCart = false;
+
+            if (User.Identity.IsAuthenticated && User.IsInRole("Customer"))
+            {
+                string currentUserId = _userManager.GetUserId(User);
+
+                alreadyInCart = await _context.Orders
+                    .Where(o => o.CustomerID == currentUserId &&
+                                o.OrderStatus == OrderStatus.InCart)
+                    .SelectMany(o => o.OrderDetails)
+                    .AnyAsync(od => od.BookID == book.BookID);
+            }
+
+            ViewBag.AlreadyInCart = alreadyInCart;
 
             // --- Rating Calculation Fix ---
             var approvedReviews = book.Reviews.Where(r => r.IsApproved == true).ToList();
