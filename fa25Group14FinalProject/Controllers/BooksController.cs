@@ -1,5 +1,6 @@
 using fa25Group14FinalProject.DAL;
 using fa25Group14FinalProject.Models;
+using fa25Group14FinalProject.Utilities;
 using fa25Group14FinalProject.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -9,7 +10,9 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
+using fa25Group14FinalProject.Utilities;
 using static fa25Group14FinalProject.ViewModels.SearchViewModel;
 
 namespace fa25Group14FinalProject.Controllers
@@ -289,6 +292,47 @@ namespace fa25Group14FinalProject.Controllers
             ViewBag.AllGenres = GetAllGenres(book.GenreID);
             return View(book);
         }
+        private async Task HandleBookDiscontinuedAsync(Book discontinuedBook)
+        {
+            // Find all *in-cart* orders that contain this book
+            var affectedCarts = await _context.Orders
+                .Include(o => o.OrderDetails)
+                .Where(o => o.OrderStatus == OrderStatus.InCart &&
+                            o.OrderDetails.Any(od => od.BookID == discontinuedBook.BookID))
+                .ToListAsync();
+
+            if (!affectedCarts.Any()) return;
+
+            foreach (var cart in affectedCarts)
+            {
+                // Remove the discontinued book from the cart
+                var detailsToRemove = cart.OrderDetails
+                    .Where(od => od.BookID == discontinuedBook.BookID)
+                    .ToList();
+
+                _context.OrderDetails.RemoveRange(detailsToRemove);
+
+                // Look up the customer from the Users table (no login needed)
+                var customer = await _context.Users.FirstOrDefaultAsync(u => u.Id == cart.CustomerID);
+                if (customer != null)
+                {
+                    var body = new StringBuilder();
+                    body.AppendLine($"Hi {customer.FirstName},");
+                    body.AppendLine();
+                    body.AppendLine($"The book '{discontinuedBook.Title}' by {discontinuedBook.Authors} ");
+                    body.AppendLine("was discontinued and has been removed from your cart.");
+                    body.AppendLine();
+                    body.AppendLine("You can visit Bevo's Books anytime to continue shopping.");
+                    body.AppendLine("Team 14 – Bevo's Books");
+
+                    string subject = "Team 14: Cart Update – Items Removed";
+                    await EmailUtils.SendEmailAsync(customer.Email, subject, body.ToString());
+                }
+            }
+
+            // Persist cart changes
+            await _context.SaveChangesAsync();
+        }
 
         // POST: Books/Edit/5
         [HttpPost]
@@ -313,7 +357,7 @@ namespace fa25Group14FinalProject.Controllers
             {
                 return NotFound();
             }
-
+            bool wasDiscontinuedBefore = bookToUpdate.BookStatus;
             // Cost validation
             if (book.Cost <= 0)
             {
@@ -341,7 +385,10 @@ namespace fa25Group14FinalProject.Controllers
                     // Attach and update the entity with only the properties that changed
                     _context.Update(bookToUpdate);
                     await _context.SaveChangesAsync();
-
+                    if (!wasDiscontinuedBefore && bookToUpdate.BookStatus == true)
+                    {
+                        await HandleBookDiscontinuedAsync(bookToUpdate);
+                    }
                     TempData["Message"] = $"Book '{bookToUpdate.Title}' was successfully updated.";
                 }
                 catch (DbUpdateConcurrencyException)
