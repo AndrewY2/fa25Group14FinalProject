@@ -79,7 +79,44 @@
                             </li>
                         }
 
+<<<<<<< Updated upstream
                         @* REMOVED: Redundant "Manage Account" link *@
+=======
+
+                        @* Customer-only account page *@
+                        @if (!User.IsInRole("Admin"))
+                        {
+                            <li class="nav-item">
+                                <a asp-controller="Account" asp-action="Index" class="nav-link">Manage Account</a>
+                            </li>
+                        }
+
+                        @* Employee/Admin review approval queue *@
+                        @if (User.IsInRole("Admin") || User.IsInRole("Employee"))
+                        {
+                            <li class="nav-item">
+                                <a asp-controller="Reviews" asp-action="Pending" class="nav-link">Review Queue</a>
+                            </li>
+                        }
+
+
+                        @* Admin-only tools *@
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <li class="nav-item">
+                                <a asp-controller="RoleAdmin" asp-action="Index" class="nav-link">Manage Users</a>
+                            </li>
+                            <li class="nav-item">
+                                <a asp-controller="Promotions" asp-action="Index" class="nav-link">Promotions</a>
+                            </li>
+                            <li class="nav-item">
+                                <a asp-controller="Reorders" asp-action="Index" class="nav-link">Book Procurement</a>
+                            </li>
+                            <li class="nav-item">
+                                <a asp-controller="Reports" asp-action="Index" class="nav-link">Reports</a>
+                            </li>
+                        }
+>>>>>>> Stashed changes
                     }
                 </ul>
             </div>
